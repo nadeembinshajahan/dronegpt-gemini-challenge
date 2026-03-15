@@ -413,8 +413,8 @@ class DroneSimulation {
             prop.rotation.y += 0.5;
         });
         
-        // Hover bob
-        const bob = Math.sin(Date.now() * 0.003) * 0.05;
+        // Hover bob - very subtle
+        const bob = Math.sin(Date.now() * 0.002) * 0.01;
         this.drone.position.y += bob;
         
         // Update HUD

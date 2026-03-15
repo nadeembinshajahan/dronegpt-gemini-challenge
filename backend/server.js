@@ -59,7 +59,7 @@ If you're unsure, ask for clarification.`;
 async function processVoiceCommand(audioBase64, cameraFrame, sceneInfo, transcribedText) {
     try {
         const model = genAI.getGenerativeModel({ 
-            model: 'gemini-2.0-flash',  // Using Flash for audio + vision
+            model: 'gemini-3-flash',  // Using Flash for audio + vision
             systemInstruction: SYSTEM_PROMPT
         });
 
@@ -118,7 +118,7 @@ User command: "${transcribedText}"
 // Simple speech-to-text using Gemini
 async function transcribeAudio(audioBase64) {
     try {
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-3-flash' });
         
         // Extract base64 data
         const base64Data = audioBase64.split(',')[1] || audioBase64;

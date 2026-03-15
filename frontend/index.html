@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DroneGPT — AI with a Body</title>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.162.0/examples/js/controls/OrbitControls.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
@@ -12,16 +14,91 @@
             color: #fff;
             overflow: hidden;
         }
-        #container { width: 100vw; height: 100vh; position: relative; }
-        
-        /* World Labs iframe */
-        #world-frame {
-            width: 100%;
-            height: 100%;
-            border: none;
+        #container { 
+            width: 100vw; 
+            height: 100vh; 
+            position: relative;
+            overflow: hidden;
         }
         
-        /* Voice indicator overlay */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+        .ui-layer > * {
+            pointer-events: auto;
+        }
+        #scene-container { 
+            width: 100%; 
+            height: 100%; 
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        
+        /* Top Control Bar */
+        #control-bar {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        /* Environment & Robot Selectors */
+        .selector-row {
+            display: flex;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            padding: 8px 16px;
+            border-radius: 30px;
+            border: 1px solid rgba(0, 200, 255, 0.3);
+        }
+        .selector-btn {
+            padding: 8px 14px;
+            background: rgba(0, 200, 255, 0.1);
+            border: 1px solid rgba(0, 200, 255, 0.3);
+            border-radius: 20px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .selector-btn:hover { background: rgba(0, 200, 255, 0.25); transform: scale(1.02); }
+        .selector-btn.active { 
+            background: linear-gradient(135deg, #00c8ff, #0088cc);
+            color: #000;
+            border-color: #00c8ff;
+            font-weight: 600;
+        }
+        .selector-btn.disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .selector-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #888;
+            padding: 8px 8px 8px 0;
+            border-right: 1px solid rgba(255,255,255,0.1);
+            margin-right: 8px;
+        }
+        
+        /* Voice Controls */
         #voice-overlay {
             position: absolute;
             bottom: 30px;
@@ -30,12 +107,34 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 16px;
-            z-index: 100;
+            gap: 12px;
+            z-index: 1000;
+        }
+        
+        #voice-suggestions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 600px;
+        }
+        .voice-suggestion {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(0, 200, 255, 0.3);
+            border-radius: 15px;
+            padding: 6px 12px;
+            font-size: 11px;
+            color: #aaa;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .voice-suggestion:hover {
+            background: rgba(0, 200, 255, 0.2);
+            color: #fff;
         }
         
         #voice-status {
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.85);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 20px;
@@ -55,27 +154,24 @@
             align-items: center;
             justify-content: center;
             transition: all 0.3s;
+            cursor: pointer;
         }
-        
         #voice-indicator.listening {
             background: #00c8ff;
             animation: pulse 1.5s infinite;
         }
-        
         #voice-indicator.speaking {
             background: #00ff88;
             border-color: #00ff88;
             animation: pulse 0.8s infinite;
         }
-        
         @keyframes pulse {
             0%, 100% { box-shadow: 0 0 0 0 rgba(0, 200, 255, 0.4); transform: scale(1); }
             50% { box-shadow: 0 0 0 15px rgba(0, 200, 255, 0); transform: scale(1.05); }
         }
-        
         #voice-indicator svg { width: 28px; height: 28px; fill: #fff; }
         
-        /* Start button */
+        /* Start Button */
         #start-btn {
             position: absolute;
             top: 50%;
@@ -83,33 +179,37 @@
             transform: translate(-50%, -50%);
             padding: 20px 40px;
             font-size: 18px;
-            background: #00c8ff;
+            background: linear-gradient(135deg, #00c8ff, #0088cc);
             border: none;
             border-radius: 12px;
             color: #000;
             cursor: pointer;
             font-weight: 600;
-            z-index: 200;
+            z-index: 2000;
+            box-shadow: 0 4px 20px rgba(0, 200, 255, 0.3);
         }
-        #start-btn:hover { background: #00a8df; }
+        #start-btn:hover { transform: translate(-50%, -50%) scale(1.05); }
         #start-btn.hidden { display: none; }
         
         /* HUD */
         #hud {
             position: absolute;
-            top: 20px;
+            top: 120px;
             left: 20px;
-            z-index: 100;
+            z-index: 1000;
+            pointer-events: none;
         }
         .hud-panel {
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.75);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(0, 200, 255, 0.3);
             border-radius: 12px;
             padding: 12px 16px;
+            margin-bottom: 10px;
+            min-width: 140px;
         }
         .hud-title {
-            font-size: 10px;
+            font-size: 9px;
             text-transform: uppercase;
             letter-spacing: 2px;
             color: #00c8ff;
@@ -119,19 +219,76 @@
             font-size: 14px;
             font-weight: 600;
         }
+        .hud-icon {
+            font-size: 20px;
+            margin-right: 8px;
+        }
         
-        /* Connection status */
+        /* Battery/Fuel */
+        #battery-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        #battery-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #88ff00);
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+        #battery-fill.low { background: linear-gradient(90deg, #ff4444, #ff8800); }
+        
+        /* Telemetry */
+        #telemetry {
+            position: absolute;
+            top: 120px;
+            right: 20px;
+            z-index: 1000;
+            pointer-events: none;
+        }
+        .telemetry-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .telemetry-item {
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 200, 255, 0.3);
+            border-radius: 8px;
+            padding: 8px 12px;
+            min-width: 70px;
+            text-align: center;
+        }
+        .telemetry-label {
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #888;
+        }
+        .telemetry-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #00c8ff;
+            font-family: 'Courier New', monospace;
+        }
+        
+        /* Connection Status */
         #connection-status {
             position: absolute;
             top: 20px;
             right: 20px;
-            z-index: 100;
+            z-index: 1000;
             display: flex;
             align-items: center;
             gap: 8px;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.75);
             padding: 8px 16px;
             border-radius: 20px;
+            pointer-events: auto;
         }
         .status-dot {
             width: 10px;
@@ -140,82 +297,1526 @@
             background: #ff4444;
         }
         .status-dot.connected { background: #00ff88; }
+        
+        /* FPV Toggle */
+        #fpv-toggle {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.75);
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(0, 200, 255, 0.3);
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        #fpv-toggle:hover { background: rgba(0, 200, 255, 0.2); }
+        #fpv-toggle.active { background: #00c8ff; color: #000; }
+        
+        /* Minimap */
+        #minimap {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 150px;
+            height: 150px;
+            background: rgba(0, 0, 0, 0.75);
+            border: 1px solid rgba(0, 200, 255, 0.3);
+            border-radius: 12px;
+            overflow: hidden;
+            z-index: 1000;
+        }
+        #minimap-canvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Waypoints Panel */
+        #waypoints-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.75);
+            border: 1px solid rgba(0, 200, 255, 0.3);
+            border-radius: 12px;
+            padding: 12px;
+            min-width: 160px;
+            pointer-events: auto;
+        }
+        #waypoints-panel h4 {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #00c8ff;
+            margin-bottom: 8px;
+        }
+        .waypoint-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 0;
+            font-size: 11px;
+            color: #aaa;
+        }
+        .waypoint-item.active { color: #00ff88; }
+        .waypoint-item.completed { color: #666; text-decoration: line-through; }
+        .waypoint-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00c8ff;
+        }
+        .waypoint-dot.active { background: #00ff88; animation: pulse 1s infinite; }
+        .waypoint-dot.completed { background: #444; }
+        #add-waypoint-btn {
+            width: 100%;
+            margin-top: 8px;
+            padding: 6px;
+            background: rgba(0, 200, 255, 0.2);
+            border: 1px solid rgba(0, 200, 255, 0.3);
+            border-radius: 6px;
+            color: #fff;
+            font-size: 10px;
+            cursor: pointer;
+        }
+        #add-waypoint-btn:hover { background: rgba(0, 200, 255, 0.3); }
+        
+        /* Weather Indicator */
+        #weather-indicator {
+            position: absolute;
+            top: 70px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.75);
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        /* Controls Hint */
+        #controls-hint {
+            position: absolute;
+            bottom: 180px;
+            left: 20px;
+            z-index: 1000;
+            pointer-events: none;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 11px;
+            color: #888;
+            max-width: 200px;
+        }
+        #controls-hint kbd {
+            background: rgba(255,255,255,0.15);
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 10px;
+        }
+        
+        /* Underwater Effect */
+        .underwater-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: linear-gradient(180deg, rgba(0, 80, 120, 0.3), rgba(0, 40, 60, 0.5));
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        .underwater-overlay.active { opacity: 1; }
+        
+        /* Weather Effects */
+        #weather-effects {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 49;
+            overflow: hidden;
+        }
+        .rain {
+            position: absolute;
+            width: 2px;
+            height: 20px;
+            background: linear-gradient(transparent, rgba(174, 194, 224, 0.5));
+            animation: rain-fall 0.5s linear infinite;
+        }
+        @keyframes rain-fall {
+            0% { transform: translateY(-20px); }
+            100% { transform: translateY(100vh); }
+        }
     </style>
 </head>
 <body>
     <div id="container">
-        <!-- World Labs 3D World -->
-        <iframe 
-            id="world-frame" 
-            src="https://marble.worldlabs.ai/world/f850e33b-50bb-4a61-b361-46376404ea47?embed=true"
-            allow="microphone; camera; xr-spatial-tracking"
-        ></iframe>
+        <div id="scene-container"></div>
+        <div class="underwater-overlay" id="underwater-overlay"></div>
+        <div id="weather-effects"></div>
         
-        <!-- Start Button (required for audio permission) -->
-        <button id="start-btn">🎤 Start Voice Control</button>
-        
-        <!-- HUD -->
-        <div id="hud">
-            <div class="hud-panel">
-                <div class="hud-title">DroneGPT</div>
-                <div class="hud-value">AI with a Body</div>
+        <div class="ui-layer">
+            <!-- Control Bar -->
+            <div id="control-bar">
+                <div class="selector-row" id="robot-selector">
+                    <span class="selector-label">ROBOT</span>
+                    <button class="selector-btn active" data-robot="drone">🚁 Drone</button>
+                    <button class="selector-btn" data-robot="auv">🤿 AUV</button>
+                    <button class="selector-btn" data-robot="rover">🚗 Rover</button>
+                    <button class="selector-btn" data-robot="quadruped">🐕 Quadruped</button>
+                </div>
+                <div class="selector-row" id="env-selector">
+                    <span class="selector-label">ENV</span>
+                    <button class="selector-btn active" data-env="warehouse">🏭 Warehouse</button>
+                    <button class="selector-btn" data-env="city">🏙️ City</button>
+                    <button class="selector-btn" data-env="forest">🌲 Forest</button>
+                    <button class="selector-btn" data-env="desert">🏜️ Desert</button>
+                    <button class="selector-btn" data-env="ocean">🌊 Ocean</button>
+                </div>
             </div>
-        </div>
-        
-        <!-- Connection Status -->
-        <div id="connection-status">
-            <div class="status-dot" id="status-dot"></div>
-            <span id="status-text">Disconnected</span>
-        </div>
-        
-        <!-- Voice Overlay -->
-        <div id="voice-overlay" style="display: none;">
-            <div id="voice-status">Listening... speak naturally</div>
-            <div id="voice-indicator">
-                <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1 1.93c-3.94-.49-7-3.85-7-7.93h2c0 3.31 2.69 6 6 6s6-2.69 6-6h2c0 4.08-3.06 7.44-7 7.93V19h4v2H8v-2h4v-3.07z"/></svg>
+            
+            <!-- FPV Toggle -->
+            <button id="fpv-toggle">👁️ FPV View</button>
+            
+            <!-- Connection Status -->
+            <div id="connection-status">
+                <div class="status-dot" id="status-dot"></div>
+                <span id="status-text">Disconnected</span>
+            </div>
+            
+            <!-- Weather Indicator -->
+            <div id="weather-indicator">
+                <span id="weather-icon">☀️</span>
+                <span id="weather-text">Clear</span>
+            </div>
+            
+            <!-- Start Button -->
+            <button id="start-btn">🎤 Start Voice Control</button>
+            
+            <!-- HUD -->
+            <div id="hud">
+                <div class="hud-panel">
+                    <div class="hud-title">DroneGPT</div>
+                    <div class="hud-value"><span class="hud-icon" id="robot-icon">🚁</span><span id="robot-name">Quadcopter</span></div>
+                </div>
+                <div class="hud-panel">
+                    <div class="hud-title">Environment</div>
+                    <div class="hud-value" id="env-name">Warehouse</div>
+                </div>
+                <div class="hud-panel">
+                    <div class="hud-title">Battery</div>
+                    <div class="hud-value" id="battery-text">100%</div>
+                    <div id="battery-bar"><div id="battery-fill" style="width: 100%"></div></div>
+                </div>
+            </div>
+            
+            <!-- Telemetry -->
+            <div id="telemetry">
+                <div class="telemetry-row">
+                    <div class="telemetry-item">
+                        <div class="telemetry-label" id="alt-label">ALT</div>
+                        <div class="telemetry-value" id="telem-alt">10.0m</div>
+                    </div>
+                    <div class="telemetry-item">
+                        <div class="telemetry-label">SPD</div>
+                        <div class="telemetry-value" id="telem-spd">0.0</div>
+                    </div>
+                </div>
+                <div class="telemetry-row">
+                    <div class="telemetry-item">
+                        <div class="telemetry-label">X</div>
+                        <div class="telemetry-value" id="telem-x">0.0</div>
+                    </div>
+                    <div class="telemetry-item">
+                        <div class="telemetry-label">Z</div>
+                        <div class="telemetry-value" id="telem-z">0.0</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Waypoints Panel -->
+            <div id="waypoints-panel">
+                <h4>📍 Waypoints</h4>
+                <div id="waypoints-list"></div>
+                <button id="add-waypoint-btn">+ Add Current Position</button>
+            </div>
+            
+            <!-- Minimap -->
+            <div id="minimap">
+                <canvas id="minimap-canvas"></canvas>
+            </div>
+            
+            <!-- Controls Hint -->
+            <div id="controls-hint">
+                <div id="controls-text">
+                    <kbd>W/S</kbd> Forward/Back<br>
+                    <kbd>A/D</kbd> Strafe<br>
+                    <kbd>Q/E</kbd> Up/Down<br>
+                    <kbd>←/→</kbd> Turn
+                </div>
+            </div>
+            
+            <!-- Voice Overlay -->
+            <div id="voice-overlay" style="display: none;">
+                <div id="voice-suggestions"></div>
+                <div id="voice-status">Click mic to start talking</div>
+                <div id="voice-indicator">
+                    <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1 1.93c-3.94-.49-7-3.85-7-7.93h2c0 3.31 2.69 6 6 6s6-2.69 6-6h2c0 4.08-3.06 7.44-7 7.93V19h4v2H8v-2h4v-3.07z"/></svg>
+                </div>
             </div>
         </div>
     </div>
 
-    <script type="module">
-        // Gemini Live API - Continuous Voice Interaction
-        
+    <script>
+        // ============= CONFIGURATION =============
         const GEMINI_API_KEY = 'AIzaSyDaChUoaX7l6-yeUVrS31StPbFGDPZq928';
         const MODEL = 'gemini-2.0-flash-live-001';
         
+        // Robot configurations
+        const ROBOTS = {
+            drone: {
+                name: 'Quadcopter',
+                icon: '🚁',
+                physics: { gravity: 0.15, drag: 0.95, thrust: 0.6, maxSpeed: 2 },
+                environments: ['warehouse', 'city', 'forest', 'desert', 'ocean'],
+                startHeight: 10,
+                controls: '<kbd>W/S</kbd> Forward/Back<br><kbd>A/D</kbd> Strafe<br><kbd>Q/E</kbd> Up/Down<br><kbd>←/→</kbd> Turn',
+                suggestions: ['fly higher', 'turn left', 'go forward', 'land', 'describe surroundings']
+            },
+            auv: {
+                name: 'Submarine ROV',
+                icon: '🤿',
+                physics: { gravity: 0.02, drag: 0.92, thrust: 0.3, maxSpeed: 1, buoyancy: 0.02 },
+                environments: ['ocean'],
+                startHeight: -5,
+                controls: '<kbd>W/S</kbd> Forward/Back<br><kbd>A/D</kbd> Strafe<br><kbd>Q/E</kbd> Dive/Surface<br><kbd>←/→</kbd> Turn',
+                suggestions: ['dive deeper', 'surface', 'scan for fish', 'check depth', 'explore seabed']
+            },
+            rover: {
+                name: 'Ground Rover',
+                icon: '🚗',
+                physics: { gravity: 0.5, drag: 0.9, thrust: 0.4, maxSpeed: 1.5, friction: 0.95 },
+                environments: ['warehouse', 'city', 'forest', 'desert'],
+                startHeight: 0.5,
+                controls: '<kbd>W/S</kbd> Forward/Back<br><kbd>A/D</kbd> Turn<br><kbd>Space</kbd> Brake',
+                suggestions: ['drive forward', 'turn around', 'stop', 'what do you see', 'navigate to waypoint']
+            },
+            quadruped: {
+                name: 'Robot Dog',
+                icon: '🐕',
+                physics: { gravity: 0.5, drag: 0.85, thrust: 0.35, maxSpeed: 1.2, gaitSpeed: 8 },
+                environments: ['warehouse', 'city', 'forest', 'desert'],
+                startHeight: 0.8,
+                controls: '<kbd>W/S</kbd> Walk/Back<br><kbd>A/D</kbd> Turn<br><kbd>Space</kbd> Sit',
+                suggestions: ['walk forward', 'sit', 'stand up', 'run', 'look around']
+            }
+        };
+        
+        // Environment configurations
+        const ENVIRONMENTS = {
+            warehouse: { name: 'Warehouse', weather: ['clear', 'cloudy'] },
+            city: { name: 'Night City', weather: ['clear', 'rain'] },
+            forest: { name: 'Forest', weather: ['clear', 'cloudy', 'rain'] },
+            desert: { name: 'Desert', weather: ['clear', 'sandstorm'] },
+            ocean: { name: 'Ocean Platform', weather: ['clear', 'storm'], hasUnderwater: true }
+        };
+        
+        // ============= STATE =============
+        let scene, camera, renderer, controls;
+        let robot, robotType = 'drone';
+        let currentEnvironment = 'warehouse';
+        let environmentObjects = [];
+        let waypoints = [];
+        let currentWaypointIndex = -1;
+        let battery = 100;
+        let fpvMode = false;
+        let fpvCamera;
+        let weather = 'clear';
+        let isUnderwater = false;
+        
+        const robotState = {
+            position: new THREE.Vector3(0, 10, 0),
+            velocity: new THREE.Vector3(0, 0, 0),
+            rotation: new THREE.Euler(0, 0, 0),
+            targetPosition: new THREE.Vector3(0, 10, 0),
+            legPhase: 0 // For quadruped animation
+        };
+        
+        const keys = {};
+        
+        // ============= INITIALIZATION =============
+        function init() {
+            // Scene
+            scene = new THREE.Scene();
+            
+            // Main Camera
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.set(30, 25, 30);
+            
+            // FPV Camera
+            fpvCamera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 2000);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.0;
+            document.getElementById('scene-container').appendChild(renderer.domElement);
+            
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2.1;
+            
+            // Create robot
+            createRobot(robotType);
+            
+            // Load environment
+            loadEnvironment('warehouse');
+            
+            // Event listeners
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('keydown', (e) => keys[e.key.toLowerCase()] = true);
+            document.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
+            
+            // Initialize minimap
+            initMinimap();
+            
+            // Start animation
+            animate();
+        }
+        
+        // ============= ROBOT CREATION =============
+        function createRobot(type) {
+            if (robot) {
+                scene.remove(robot);
+            }
+            
+            robot = new THREE.Group();
+            
+            switch(type) {
+                case 'drone':
+                    createDrone();
+                    break;
+                case 'auv':
+                    createAUV();
+                    break;
+                case 'rover':
+                    createRover();
+                    break;
+                case 'quadruped':
+                    createQuadruped();
+                    break;
+            }
+            
+            robot.position.copy(robotState.position);
+            robot.castShadow = true;
+            scene.add(robot);
+            
+            // Update UI
+            const cfg = ROBOTS[type];
+            document.getElementById('robot-icon').textContent = cfg.icon;
+            document.getElementById('robot-name').textContent = cfg.name;
+            document.getElementById('controls-text').innerHTML = cfg.controls;
+            updateVoiceSuggestions(cfg.suggestions);
+        }
+        
+        function createDrone() {
+            // Body
+            const bodyGeom = new THREE.BoxGeometry(1.5, 0.3, 1.5);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.8, roughness: 0.2 });
+            const body = new THREE.Mesh(bodyGeom, bodyMat);
+            robot.add(body);
+            
+            // Arms
+            const armGeom = new THREE.BoxGeometry(0.15, 0.1, 2);
+            const armMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+            const arm1 = new THREE.Mesh(armGeom, armMat);
+            arm1.rotation.y = Math.PI / 4;
+            robot.add(arm1);
+            const arm2 = new THREE.Mesh(armGeom, armMat);
+            arm2.rotation.y = -Math.PI / 4;
+            robot.add(arm2);
+            
+            // Propellers
+            const propGeom = new THREE.CylinderGeometry(0.4, 0.4, 0.05, 16);
+            const propMat = new THREE.MeshStandardMaterial({ color: 0x00c8ff, transparent: true, opacity: 0.7 });
+            const propPositions = [[0.9, 0.15, 0.9], [-0.9, 0.15, 0.9], [0.9, 0.15, -0.9], [-0.9, 0.15, -0.9]];
+            propPositions.forEach(pos => {
+                const prop = new THREE.Mesh(propGeom, propMat);
+                prop.position.set(...pos);
+                prop.userData.isPropeller = true;
+                robot.add(prop);
+            });
+            
+            // LEDs
+            const ledFront = new THREE.Mesh(new THREE.SphereGeometry(0.08), new THREE.MeshBasicMaterial({ color: 0x00ff00 }));
+            ledFront.position.set(0, -0.1, 0.8);
+            robot.add(ledFront);
+            const ledBack = new THREE.Mesh(new THREE.SphereGeometry(0.08), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+            ledBack.position.set(0, -0.1, -0.8);
+            robot.add(ledBack);
+            
+            // Camera for FPV
+            const camMount = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.15), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+            camMount.position.set(0, -0.1, 0.6);
+            camMount.userData.isCameraMount = true;
+            robot.add(camMount);
+        }
+        
+        function createAUV() {
+            // Submarine body - torpedo shape
+            const bodyGeom = new THREE.CapsuleGeometry(0.5, 2, 8, 16);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, metalness: 0.6, roughness: 0.3 });
+            const body = new THREE.Mesh(bodyGeom, bodyMat);
+            body.rotation.z = Math.PI / 2;
+            robot.add(body);
+            
+            // Propeller housing
+            const propHouse = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.3, 0.4, 0.4, 8),
+                new THREE.MeshStandardMaterial({ color: 0x333333 })
+            );
+            propHouse.rotation.z = Math.PI / 2;
+            propHouse.position.set(-1.3, 0, 0);
+            robot.add(propHouse);
+            
+            // Propeller
+            const propGeom = new THREE.BoxGeometry(0.05, 0.6, 0.15);
+            const propMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
+            for (let i = 0; i < 3; i++) {
+                const blade = new THREE.Mesh(propGeom, propMat);
+                blade.position.set(-1.5, 0, 0);
+                blade.rotation.x = (i / 3) * Math.PI * 2;
+                blade.userData.isPropeller = true;
+                robot.add(blade);
+            }
+            
+            // Fins
+            const finGeom = new THREE.BoxGeometry(0.3, 0.02, 0.5);
+            const finMat = new THREE.MeshStandardMaterial({ color: 0xff6600 });
+            const positions = [[0, 0.5, 0], [0, -0.5, 0], [0.5, 0, 0], [-0.5, 0, 0]];
+            positions.forEach((pos, i) => {
+                const fin = new THREE.Mesh(finGeom, finMat);
+                fin.position.set(pos[0] - 0.8, pos[1], pos[2]);
+                if (i >= 2) fin.rotation.z = Math.PI / 2;
+                robot.add(fin);
+            });
+            
+            // Lights
+            const light1 = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0x00ffff }));
+            light1.position.set(1.2, 0.2, 0.2);
+            robot.add(light1);
+            const light2 = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0x00ffff }));
+            light2.position.set(1.2, 0.2, -0.2);
+            robot.add(light2);
+            
+            // Camera
+            const camMount = new THREE.Mesh(new THREE.SphereGeometry(0.15), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+            camMount.position.set(1.3, 0, 0);
+            camMount.userData.isCameraMount = true;
+            robot.add(camMount);
+        }
+        
+        function createRover() {
+            // Body
+            const bodyGeom = new THREE.BoxGeometry(2, 0.6, 1.2);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x3366cc, metalness: 0.5, roughness: 0.4 });
+            const body = new THREE.Mesh(bodyGeom, bodyMat);
+            body.position.y = 0.3;
+            robot.add(body);
+            
+            // Wheels
+            const wheelGeom = new THREE.CylinderGeometry(0.3, 0.3, 0.2, 16);
+            const wheelMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
+            const wheelPositions = [[0.7, 0, 0.7], [-0.7, 0, 0.7], [0.7, 0, -0.7], [-0.7, 0, -0.7]];
+            wheelPositions.forEach(pos => {
+                const wheel = new THREE.Mesh(wheelGeom, wheelMat);
+                wheel.position.set(...pos);
+                wheel.rotation.x = Math.PI / 2;
+                wheel.userData.isWheel = true;
+                robot.add(wheel);
+            });
+            
+            // Camera mast
+            const mastGeom = new THREE.CylinderGeometry(0.05, 0.05, 0.5);
+            const mastMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
+            const mast = new THREE.Mesh(mastGeom, mastMat);
+            mast.position.set(0.5, 0.85, 0);
+            robot.add(mast);
+            
+            // Camera head
+            const camHead = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.15), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+            camHead.position.set(0.5, 1.15, 0);
+            camHead.userData.isCameraMount = true;
+            robot.add(camHead);
+            
+            // Antenna
+            const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.4), new THREE.MeshStandardMaterial({ color: 0x888888 }));
+            antenna.position.set(-0.8, 0.9, 0);
+            robot.add(antenna);
+            const antennaTip = new THREE.Mesh(new THREE.SphereGeometry(0.04), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+            antennaTip.position.set(-0.8, 1.15, 0);
+            robot.add(antennaTip);
+        }
+        
+        function createQuadruped() {
+            // Body
+            const bodyGeom = new THREE.BoxGeometry(1.5, 0.4, 0.8);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffcc00, metalness: 0.3, roughness: 0.5 });
+            const body = new THREE.Mesh(bodyGeom, bodyMat);
+            body.position.y = 0.6;
+            robot.add(body);
+            
+            // Head
+            const headGeom = new THREE.BoxGeometry(0.4, 0.3, 0.35);
+            const head = new THREE.Mesh(headGeom, bodyMat);
+            head.position.set(0.85, 0.75, 0);
+            head.userData.isCameraMount = true;
+            robot.add(head);
+            
+            // Eyes
+            const eyeGeom = new THREE.SphereGeometry(0.05);
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+            const eye1 = new THREE.Mesh(eyeGeom, eyeMat);
+            eye1.position.set(1.05, 0.8, 0.1);
+            robot.add(eye1);
+            const eye2 = new THREE.Mesh(eyeGeom, eyeMat);
+            eye2.position.set(1.05, 0.8, -0.1);
+            robot.add(eye2);
+            
+            // Legs (4 legs, each with upper and lower segment)
+            const legMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+            const legPositions = [
+                { x: 0.5, z: 0.35, name: 'FL' },
+                { x: 0.5, z: -0.35, name: 'FR' },
+                { x: -0.5, z: 0.35, name: 'BL' },
+                { x: -0.5, z: -0.35, name: 'BR' }
+            ];
+            
+            legPositions.forEach(pos => {
+                const leg = new THREE.Group();
+                leg.position.set(pos.x, 0.4, pos.z);
+                leg.userData.legName = pos.name;
+                
+                // Upper leg
+                const upper = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.35, 0.12), legMat);
+                upper.position.y = -0.15;
+                upper.userData.isUpperLeg = true;
+                leg.add(upper);
+                
+                // Lower leg
+                const lower = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.1), legMat);
+                lower.position.y = -0.45;
+                lower.userData.isLowerLeg = true;
+                leg.add(lower);
+                
+                // Foot
+                const foot = new THREE.Mesh(new THREE.SphereGeometry(0.08), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+                foot.position.y = -0.6;
+                foot.userData.isFoot = true;
+                leg.add(foot);
+                
+                robot.add(leg);
+            });
+        }
+        
+        // ============= ROBOT SWITCHING =============
+        function switchRobot(type) {
+            if (!ROBOTS[type]) return;
+            
+            const cfg = ROBOTS[type];
+            
+            // Check if robot is compatible with current environment
+            if (!cfg.environments.includes(currentEnvironment)) {
+                // Switch to first compatible environment
+                const compatEnv = cfg.environments[0];
+                loadEnvironment(compatEnv);
+                document.querySelectorAll('#env-selector .selector-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.env === compatEnv);
+                });
+            }
+            
+            robotType = type;
+            robotState.position.y = cfg.startHeight;
+            robotState.velocity.set(0, 0, 0);
+            
+            createRobot(type);
+            updateEnvironmentButtons();
+            
+            // Update underwater state
+            isUnderwater = (type === 'auv' && currentEnvironment === 'ocean');
+            document.getElementById('underwater-overlay').classList.toggle('active', isUnderwater);
+            document.getElementById('alt-label').textContent = isUnderwater ? 'DEPTH' : 'ALT';
+        }
+        
+        function updateEnvironmentButtons() {
+            const cfg = ROBOTS[robotType];
+            document.querySelectorAll('#env-selector .selector-btn').forEach(btn => {
+                const env = btn.dataset.env;
+                btn.classList.toggle('disabled', !cfg.environments.includes(env));
+            });
+        }
+        
+        // ============= ENVIRONMENT CREATION =============
+        function clearEnvironment() {
+            environmentObjects.forEach(obj => {
+                scene.remove(obj);
+                if (obj.geometry) obj.geometry.dispose();
+                if (obj.material) {
+                    if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+                    else obj.material.dispose();
+                }
+            });
+            environmentObjects = [];
+        }
+        
+        function loadEnvironment(envName) {
+            clearEnvironment();
+            currentEnvironment = envName;
+            
+            const envCfg = ENVIRONMENTS[envName];
+            document.getElementById('env-name').textContent = envCfg.name;
+            
+            // Set weather
+            weather = envCfg.weather[Math.floor(Math.random() * envCfg.weather.length)];
+            updateWeatherUI();
+            
+            // Check robot compatibility
+            const robotCfg = ROBOTS[robotType];
+            if (!robotCfg.environments.includes(envName)) {
+                // Auto-switch to compatible robot
+                const compatRobot = envName === 'ocean' ? 'auv' : 'drone';
+                switchRobot(compatRobot);
+                document.querySelectorAll('#robot-selector .selector-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.robot === compatRobot);
+                });
+            }
+            
+            switch(envName) {
+                case 'warehouse': createWarehouseEnv(); break;
+                case 'city': createCityEnv(); break;
+                case 'forest': createForestEnv(); break;
+                case 'desert': createDesertEnv(); break;
+                case 'ocean': createOceanEnv(); break;
+            }
+            
+            // Update underwater state
+            isUnderwater = (robotType === 'auv' && envName === 'ocean');
+            document.getElementById('underwater-overlay').classList.toggle('active', isUnderwater);
+            document.getElementById('alt-label').textContent = isUnderwater ? 'DEPTH' : 'ALT';
+            
+            // Reset robot position
+            robotState.position.set(0, ROBOTS[robotType].startHeight, 0);
+            robotState.velocity.set(0, 0, 0);
+            
+            updateEnvironmentButtons();
+            applyWeatherEffects();
+        }
+        
+        function createWarehouseEnv() {
+            scene.background = new THREE.Color(0x87ceeb);
+            scene.fog = new THREE.Fog(0x87ceeb, 100, 500);
+            
+            // Lighting
+            const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambient);
+            environmentObjects.push(ambient);
+            
+            const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+            sun.position.set(50, 100, 50);
+            sun.castShadow = true;
+            sun.shadow.mapSize.width = 2048;
+            sun.shadow.mapSize.height = 2048;
+            sun.shadow.camera.near = 0.5;
+            sun.shadow.camera.far = 500;
+            sun.shadow.camera.left = -100;
+            sun.shadow.camera.right = 100;
+            sun.shadow.camera.top = 100;
+            sun.shadow.camera.bottom = -100;
+            scene.add(sun);
+            environmentObjects.push(sun);
+            
+            // Ground
+            const groundGeom = new THREE.PlaneGeometry(500, 500);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.9 });
+            const ground = new THREE.Mesh(groundGeom, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            environmentObjects.push(ground);
+            
+            // Warehouse
+            const warehouseGeom = new THREE.BoxGeometry(60, 15, 40);
+            const warehouseMat = new THREE.MeshStandardMaterial({ color: 0x8b8b8b, roughness: 0.7 });
+            const warehouse = new THREE.Mesh(warehouseGeom, warehouseMat);
+            warehouse.position.set(-50, 7.5, 0);
+            warehouse.castShadow = true;
+            scene.add(warehouse);
+            environmentObjects.push(warehouse);
+            
+            // Containers
+            const colors = [0x2563eb, 0xdc2626, 0x16a34a, 0xf59e0b, 0x7c3aed];
+            for (let i = 0; i < 15; i++) {
+                const geom = new THREE.BoxGeometry(12, 3, 2.5);
+                const mat = new THREE.MeshStandardMaterial({ color: colors[Math.floor(Math.random() * colors.length)] });
+                const container = new THREE.Mesh(geom, mat);
+                container.position.set(20 + (i % 5) * 14, 1.5 + Math.floor(Math.random() * 2) * 3, -30 + Math.floor(i / 5) * 8);
+                container.castShadow = true;
+                scene.add(container);
+                environmentObjects.push(container);
+            }
+            
+            // Helipad
+            const helipadGeom = new THREE.CylinderGeometry(8, 8, 0.2, 32);
+            const helipad = new THREE.Mesh(helipadGeom, new THREE.MeshStandardMaterial({ color: 0x333333 }));
+            helipad.position.set(0, 0.1, 30);
+            scene.add(helipad);
+            environmentObjects.push(helipad);
+            
+            const hRing = new THREE.Mesh(new THREE.RingGeometry(5, 6, 32), new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide }));
+            hRing.rotation.x = -Math.PI / 2;
+            hRing.position.set(0, 0.25, 30);
+            scene.add(hRing);
+            environmentObjects.push(hRing);
+        }
+        
+        function createCityEnv() {
+            scene.background = new THREE.Color(0x1a1a2e);
+            scene.fog = new THREE.Fog(0x1a1a2e, 50, 300);
+            
+            const ambient = new THREE.AmbientLight(0x404060, 0.3);
+            scene.add(ambient);
+            environmentObjects.push(ambient);
+            
+            const moon = new THREE.DirectionalLight(0x8888ff, 0.4);
+            moon.position.set(-50, 100, 50);
+            scene.add(moon);
+            environmentObjects.push(moon);
+            
+            // Ground
+            const ground = new THREE.Mesh(
+                new THREE.PlaneGeometry(500, 500),
+                new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 })
+            );
+            ground.rotation.x = -Math.PI / 2;
+            scene.add(ground);
+            environmentObjects.push(ground);
+            
+            // Buildings
+            for (let i = 0; i < 40; i++) {
+                const height = 20 + Math.random() * 80;
+                const building = new THREE.Mesh(
+                    new THREE.BoxGeometry(10 + Math.random() * 15, height, 10 + Math.random() * 15),
+                    new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(0.6, 0.1, 0.1 + Math.random() * 0.1) })
+                );
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 30 + Math.random() * 120;
+                building.position.set(Math.cos(angle) * radius, height / 2, Math.sin(angle) * radius);
+                building.castShadow = true;
+                scene.add(building);
+                environmentObjects.push(building);
+            }
+            
+            // Street lights
+            for (let i = 0; i < 20; i++) {
+                const light = new THREE.PointLight(0xffaa44, 1, 20);
+                const angle = (i / 20) * Math.PI * 2;
+                light.position.set(Math.cos(angle) * 25, 8, Math.sin(angle) * 25);
+                scene.add(light);
+                environmentObjects.push(light);
+            }
+        }
+        
+        function createForestEnv() {
+            scene.background = new THREE.Color(0x228b22);
+            scene.fog = new THREE.Fog(0x228b22, 30, 150);
+            
+            const ambient = new THREE.AmbientLight(0x404030, 0.6);
+            scene.add(ambient);
+            environmentObjects.push(ambient);
+            
+            const sun = new THREE.DirectionalLight(0xffffcc, 0.8);
+            sun.position.set(30, 80, 30);
+            sun.castShadow = true;
+            scene.add(sun);
+            environmentObjects.push(sun);
+            
+            // Ground
+            const ground = new THREE.Mesh(
+                new THREE.PlaneGeometry(500, 500),
+                new THREE.MeshStandardMaterial({ color: 0x2d5016, roughness: 1 })
+            );
+            ground.rotation.x = -Math.PI / 2;
+            scene.add(ground);
+            environmentObjects.push(ground);
+            
+            // Trees
+            for (let i = 0; i < 80; i++) {
+                const treeGroup = new THREE.Group();
+                const trunkHeight = 5 + Math.random() * 10;
+                
+                const trunk = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.3, 0.5, trunkHeight, 8),
+                    new THREE.MeshStandardMaterial({ color: 0x4a3728 })
+                );
+                trunk.position.y = trunkHeight / 2;
+                treeGroup.add(trunk);
+                
+                const foliage = new THREE.Mesh(
+                    new THREE.ConeGeometry(3 + Math.random() * 2, 8 + Math.random() * 5, 8),
+                    new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(0.25 + Math.random() * 0.1, 0.7, 0.25) })
+                );
+                foliage.position.y = trunkHeight + 3;
+                treeGroup.add(foliage);
+                
+                const angle = Math.random() * Math.PI * 2;
+                const radius = 15 + Math.random() * 100;
+                treeGroup.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
+                scene.add(treeGroup);
+                environmentObjects.push(treeGroup);
+            }
+        }
+        
+        function createDesertEnv() {
+            scene.background = new THREE.Color(0xffd89b);
+            scene.fog = new THREE.Fog(0xffd89b, 100, 400);
+            
+            const ambient = new THREE.AmbientLight(0xffeedd, 0.5);
+            scene.add(ambient);
+            environmentObjects.push(ambient);
+            
+            const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+            sun.position.set(50, 100, 20);
+            sun.castShadow = true;
+            scene.add(sun);
+            environmentObjects.push(sun);
+            
+            // Ground with dunes
+            const groundGeom = new THREE.PlaneGeometry(500, 500, 50, 50);
+            const positions = groundGeom.attributes.position.array;
+            for (let i = 0; i < positions.length; i += 3) {
+                positions[i + 2] = Math.sin(positions[i] * 0.02) * Math.cos(positions[i + 1] * 0.02) * 3;
+            }
+            groundGeom.computeVertexNormals();
+            const ground = new THREE.Mesh(groundGeom, new THREE.MeshStandardMaterial({ color: 0xd4a76a, roughness: 1 }));
+            ground.rotation.x = -Math.PI / 2;
+            scene.add(ground);
+            environmentObjects.push(ground);
+            
+            // Pyramids
+            const pyramid = new THREE.Mesh(
+                new THREE.ConeGeometry(25, 35, 4),
+                new THREE.MeshStandardMaterial({ color: 0xb8956e })
+            );
+            pyramid.position.set(-80, 17.5, -80);
+            pyramid.rotation.y = Math.PI / 4;
+            scene.add(pyramid);
+            environmentObjects.push(pyramid);
+            
+            // Ruins
+            for (let i = 0; i < 5; i++) {
+                const pillar = new THREE.Mesh(
+                    new THREE.CylinderGeometry(1, 1.2, 8),
+                    new THREE.MeshStandardMaterial({ color: 0xa08060 })
+                );
+                pillar.position.set(Math.cos(i * Math.PI * 2 / 5) * 15, 4, Math.sin(i * Math.PI * 2 / 5) * 15);
+                scene.add(pillar);
+                environmentObjects.push(pillar);
+            }
+        }
+        
+        function createOceanEnv() {
+            scene.background = new THREE.Color(0x006994);
+            scene.fog = new THREE.Fog(0x006994, 50, 300);
+            
+            const ambient = new THREE.AmbientLight(0x88aacc, 0.6);
+            scene.add(ambient);
+            environmentObjects.push(ambient);
+            
+            const sun = new THREE.DirectionalLight(0xffffee, 1);
+            sun.position.set(40, 80, 40);
+            sun.castShadow = true;
+            scene.add(sun);
+            environmentObjects.push(sun);
+            
+            // Ocean surface
+            const oceanGeom = new THREE.PlaneGeometry(500, 500, 100, 100);
+            const oceanMat = new THREE.MeshStandardMaterial({
+                color: 0x006994,
+                roughness: 0.3,
+                metalness: 0.6,
+                transparent: true,
+                opacity: 0.85
+            });
+            const ocean = new THREE.Mesh(oceanGeom, oceanMat);
+            ocean.rotation.x = -Math.PI / 2;
+            ocean.userData.isOcean = true;
+            scene.add(ocean);
+            environmentObjects.push(ocean);
+            
+            // Seabed
+            const seabedGeom = new THREE.PlaneGeometry(500, 500, 30, 30);
+            const seabedPos = seabedGeom.attributes.position.array;
+            for (let i = 0; i < seabedPos.length; i += 3) {
+                seabedPos[i + 2] = Math.random() * 2;
+            }
+            seabedGeom.computeVertexNormals();
+            const seabed = new THREE.Mesh(seabedGeom, new THREE.MeshStandardMaterial({ color: 0x3d5c5c }));
+            seabed.rotation.x = -Math.PI / 2;
+            seabed.position.y = -30;
+            scene.add(seabed);
+            environmentObjects.push(seabed);
+            
+            // Oil platform
+            const platform = new THREE.Mesh(new THREE.BoxGeometry(30, 2, 30), new THREE.MeshStandardMaterial({ color: 0x444444 }));
+            platform.position.set(0, 15, 0);
+            scene.add(platform);
+            environmentObjects.push(platform);
+            
+            // Platform legs
+            for (let x = -1; x <= 1; x += 2) {
+                for (let z = -1; z <= 1; z += 2) {
+                    const leg = new THREE.Mesh(new THREE.CylinderGeometry(1, 1.5, 50, 8), new THREE.MeshStandardMaterial({ color: 0x444444 }));
+                    leg.position.set(x * 12, -10, z * 12);
+                    scene.add(leg);
+                    environmentObjects.push(leg);
+                }
+            }
+            
+            // Derrick tower
+            const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 2, 25, 4), new THREE.MeshStandardMaterial({ color: 0xff6600 }));
+            tower.position.set(0, 28.5, 0);
+            scene.add(tower);
+            environmentObjects.push(tower);
+            
+            // Underwater features (coral, fish, etc.)
+            for (let i = 0; i < 30; i++) {
+                const coral = new THREE.Mesh(
+                    new THREE.ConeGeometry(0.5 + Math.random(), 2 + Math.random() * 3, 6),
+                    new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(Math.random() * 0.1, 0.8, 0.5) })
+                );
+                coral.position.set(
+                    (Math.random() - 0.5) * 100,
+                    -28 + Math.random() * 2,
+                    (Math.random() - 0.5) * 100
+                );
+                scene.add(coral);
+                environmentObjects.push(coral);
+            }
+        }
+        
+        // ============= WEATHER SYSTEM =============
+        function updateWeatherUI() {
+            const icons = { clear: '☀️', cloudy: '☁️', rain: '🌧️', storm: '⛈️', sandstorm: '🌪️' };
+            const texts = { clear: 'Clear', cloudy: 'Cloudy', rain: 'Rain', storm: 'Storm', sandstorm: 'Sandstorm' };
+            document.getElementById('weather-icon').textContent = icons[weather] || '☀️';
+            document.getElementById('weather-text').textContent = texts[weather] || 'Clear';
+        }
+        
+        function applyWeatherEffects() {
+            const container = document.getElementById('weather-effects');
+            container.innerHTML = '';
+            
+            if (weather === 'rain' || weather === 'storm') {
+                for (let i = 0; i < 100; i++) {
+                    const rain = document.createElement('div');
+                    rain.className = 'rain';
+                    rain.style.left = Math.random() * 100 + '%';
+                    rain.style.animationDuration = (0.3 + Math.random() * 0.3) + 's';
+                    rain.style.animationDelay = Math.random() + 's';
+                    container.appendChild(rain);
+                }
+            }
+        }
+        
+        // ============= ROBOT PHYSICS =============
+        function updateRobot() {
+            const cfg = ROBOTS[robotType];
+            const physics = cfg.physics;
+            const speed = physics.thrust;
+            const rotSpeed = 0.04;
+            
+            // Input handling based on robot type
+            if (robotType === 'drone' || robotType === 'auv') {
+                // Flying/swimming - full 3D movement
+                if (keys['w']) {
+                    robotState.velocity.z -= speed * Math.cos(robot.rotation.y);
+                    robotState.velocity.x -= speed * Math.sin(robot.rotation.y);
+                }
+                if (keys['s']) {
+                    robotState.velocity.z += speed * Math.cos(robot.rotation.y);
+                    robotState.velocity.x += speed * Math.sin(robot.rotation.y);
+                }
+                if (keys['a']) {
+                    robotState.velocity.x -= speed * Math.cos(robot.rotation.y);
+                    robotState.velocity.z += speed * Math.sin(robot.rotation.y);
+                }
+                if (keys['d']) {
+                    robotState.velocity.x += speed * Math.cos(robot.rotation.y);
+                    robotState.velocity.z -= speed * Math.sin(robot.rotation.y);
+                }
+                if (keys['q']) robotState.velocity.y += speed * 0.8;
+                if (keys['e']) robotState.velocity.y -= speed * 0.8;
+                if (keys['arrowleft']) robot.rotation.y += rotSpeed;
+                if (keys['arrowright']) robot.rotation.y -= rotSpeed;
+            } else {
+                // Ground vehicles - different controls
+                if (keys['w']) {
+                    robotState.velocity.z -= speed * Math.cos(robot.rotation.y);
+                    robotState.velocity.x -= speed * Math.sin(robot.rotation.y);
+                }
+                if (keys['s']) {
+                    robotState.velocity.z += speed * 0.5 * Math.cos(robot.rotation.y);
+                    robotState.velocity.x += speed * 0.5 * Math.sin(robot.rotation.y);
+                }
+                if (keys['a']) robot.rotation.y += rotSpeed;
+                if (keys['d']) robot.rotation.y -= rotSpeed;
+                if (keys[' ']) robotState.velocity.multiplyScalar(0.9); // Brake
+            }
+            
+            // Physics simulation
+            // Gravity (different for each robot type)
+            if (robotType === 'drone') {
+                robotState.velocity.y -= physics.gravity;
+            } else if (robotType === 'auv') {
+                // Buoyancy at certain depth
+                if (robot.position.y < -2) {
+                    robotState.velocity.y += physics.buoyancy;
+                }
+            } else {
+                // Ground robots fall if in air
+                if (robot.position.y > getGroundHeight() + 0.1) {
+                    robotState.velocity.y -= physics.gravity;
+                }
+            }
+            
+            // Apply drag
+            robotState.velocity.multiplyScalar(physics.drag);
+            
+            // Clamp speed
+            if (robotState.velocity.length() > physics.maxSpeed) {
+                robotState.velocity.normalize().multiplyScalar(physics.maxSpeed);
+            }
+            
+            // Update position
+            robot.position.add(robotState.velocity);
+            
+            // Constraints based on robot type
+            if (robotType === 'drone') {
+                if (robot.position.y < 2) {
+                    robot.position.y = 2;
+                    robotState.velocity.y = 0;
+                }
+            } else if (robotType === 'auv') {
+                // Keep underwater but not too deep
+                if (robot.position.y > -1) {
+                    robot.position.y = -1;
+                    robotState.velocity.y = 0;
+                }
+                if (robot.position.y < -25) {
+                    robot.position.y = -25;
+                    robotState.velocity.y = 0;
+                }
+            } else {
+                // Ground robots stay on ground
+                const groundY = getGroundHeight();
+                if (robot.position.y <= groundY + 0.5) {
+                    robot.position.y = groundY + 0.5;
+                    robotState.velocity.y = 0;
+                }
+            }
+            
+            // Visual effects
+            if (robotType === 'drone') {
+                // Tilt based on velocity
+                robot.rotation.x = -robotState.velocity.z * 0.2;
+                robot.rotation.z = robotState.velocity.x * 0.2;
+                
+                // Spin propellers
+                robot.children.forEach(child => {
+                    if (child.userData.isPropeller) child.rotation.y += 0.5;
+                });
+            } else if (robotType === 'auv') {
+                // Slight pitch/roll
+                robot.rotation.x = -robotState.velocity.z * 0.1;
+                robot.rotation.z = robotState.velocity.x * 0.1;
+                
+                // Spin propeller
+                robot.children.forEach(child => {
+                    if (child.userData.isPropeller) child.rotation.x += 0.3;
+                });
+            } else if (robotType === 'rover') {
+                // Spin wheels
+                const wheelSpeed = robotState.velocity.length() * 0.5;
+                robot.children.forEach(child => {
+                    if (child.userData.isWheel) child.rotation.y += wheelSpeed;
+                });
+            } else if (robotType === 'quadruped') {
+                // Animate legs
+                animateQuadruped();
+            }
+            
+            // Update FPV camera
+            updateFPVCamera();
+            
+            // Update camera target
+            if (!fpvMode) {
+                controls.target.lerp(robot.position, 0.05);
+            }
+            
+            // Update telemetry
+            updateTelemetry();
+            
+            // Battery drain
+            if (robotState.velocity.length() > 0.01) {
+                battery = Math.max(0, battery - 0.002);
+                updateBattery();
+            }
+            
+            // Update minimap
+            updateMinimap();
+        }
+        
+        function getGroundHeight() {
+            // Simple ground height (could be expanded for terrain)
+            return 0;
+        }
+        
+        function animateQuadruped() {
+            if (robotState.velocity.length() > 0.01) {
+                robotState.legPhase += ROBOTS.quadruped.physics.gaitSpeed * robotState.velocity.length();
+            }
+            
+            robot.children.forEach(child => {
+                if (child.userData.legName) {
+                    const phase = robotState.legPhase;
+                    const offset = child.userData.legName.includes('F') ? 0 : Math.PI;
+                    const side = child.userData.legName.includes('L') ? 1 : -1;
+                    
+                    // Trot gait
+                    const hipAngle = Math.sin(phase + offset) * 0.3;
+                    const kneeAngle = Math.abs(Math.sin(phase + offset)) * 0.4;
+                    
+                    child.children.forEach(part => {
+                        if (part.userData.isUpperLeg) {
+                            part.rotation.x = hipAngle;
+                        } else if (part.userData.isLowerLeg) {
+                            part.rotation.x = kneeAngle;
+                        }
+                    });
+                }
+            });
+        }
+        
+        function updateFPVCamera() {
+            // Find camera mount on robot
+            let camMount = null;
+            robot.traverse(child => {
+                if (child.userData.isCameraMount) camMount = child;
+            });
+            
+            if (camMount) {
+                const worldPos = new THREE.Vector3();
+                camMount.getWorldPosition(worldPos);
+                fpvCamera.position.copy(worldPos);
+                
+                // Look in the direction the robot is facing
+                const forward = new THREE.Vector3(0, 0, -1);
+                forward.applyEuler(robot.rotation);
+                fpvCamera.lookAt(worldPos.clone().add(forward.multiplyScalar(10)));
+            }
+        }
+        
+        function updateTelemetry() {
+            const alt = robotType === 'auv' ? Math.abs(robot.position.y) : robot.position.y;
+            document.getElementById('telem-alt').textContent = alt.toFixed(1) + 'm';
+            document.getElementById('telem-spd').textContent = (robotState.velocity.length() * 10).toFixed(1);
+            document.getElementById('telem-x').textContent = robot.position.x.toFixed(1);
+            document.getElementById('telem-z').textContent = robot.position.z.toFixed(1);
+        }
+        
+        function updateBattery() {
+            document.getElementById('battery-text').textContent = Math.round(battery) + '%';
+            const fill = document.getElementById('battery-fill');
+            fill.style.width = battery + '%';
+            fill.classList.toggle('low', battery < 20);
+        }
+        
+        // ============= MINIMAP =============
+        function initMinimap() {
+            const canvas = document.getElementById('minimap-canvas');
+            canvas.width = 150;
+            canvas.height = 150;
+        }
+        
+        function updateMinimap() {
+            const canvas = document.getElementById('minimap-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = 'rgba(0, 20, 40, 0.9)';
+            ctx.fillRect(0, 0, 150, 150);
+            
+            // Draw grid
+            ctx.strokeStyle = 'rgba(0, 200, 255, 0.2)';
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i <= 150; i += 30) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, 150);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(150, i);
+                ctx.stroke();
+            }
+            
+            // Draw robot position
+            const scale = 1;
+            const centerX = 75 + robot.position.x * scale;
+            const centerY = 75 + robot.position.z * scale;
+            
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.rotate(-robot.rotation.y);
+            
+            ctx.fillStyle = '#00c8ff';
+            ctx.beginPath();
+            ctx.moveTo(0, -6);
+            ctx.lineTo(4, 4);
+            ctx.lineTo(-4, 4);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+            
+            // Draw waypoints
+            waypoints.forEach((wp, i) => {
+                const wpX = 75 + wp.x * scale;
+                const wpY = 75 + wp.z * scale;
+                ctx.fillStyle = i === currentWaypointIndex ? '#00ff88' : '#ff8800';
+                ctx.beginPath();
+                ctx.arc(wpX, wpY, 4, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+        
+        // ============= WAYPOINTS =============
+        function addWaypoint() {
+            const wp = {
+                x: robot.position.x,
+                y: robot.position.y,
+                z: robot.position.z,
+                name: `WP${waypoints.length + 1}`
+            };
+            waypoints.push(wp);
+            renderWaypoints();
+        }
+        
+        function renderWaypoints() {
+            const list = document.getElementById('waypoints-list');
+            list.innerHTML = '';
+            
+            waypoints.forEach((wp, i) => {
+                const item = document.createElement('div');
+                item.className = 'waypoint-item' + (i === currentWaypointIndex ? ' active' : '');
+                item.innerHTML = `
+                    <div class="waypoint-dot${i === currentWaypointIndex ? ' active' : ''}"></div>
+                    <span>${wp.name}: (${wp.x.toFixed(0)}, ${wp.z.toFixed(0)})</span>
+                `;
+                item.onclick = () => navigateToWaypoint(i);
+                list.appendChild(item);
+            });
+        }
+        
+        function navigateToWaypoint(index) {
+            currentWaypointIndex = index;
+            renderWaypoints();
+        }
+        
+        // ============= VOICE SUGGESTIONS =============
+        function updateVoiceSuggestions(suggestions) {
+            const container = document.getElementById('voice-suggestions');
+            container.innerHTML = '';
+            suggestions.forEach(s => {
+                const btn = document.createElement('div');
+                btn.className = 'voice-suggestion';
+                btn.textContent = `"${s}"`;
+                btn.onclick = () => {
+                    document.getElementById('voice-status').textContent = `You said: "${s}"`;
+                };
+                container.appendChild(btn);
+            });
+        }
+        
+        // ============= FPV MODE =============
+        function toggleFPV() {
+            fpvMode = !fpvMode;
+            document.getElementById('fpv-toggle').classList.toggle('active', fpvMode);
+            
+            if (fpvMode) {
+                controls.enabled = false;
+            } else {
+                controls.enabled = true;
+                camera.position.set(30, 25, 30);
+            }
+        }
+        
+        // ============= ANIMATION LOOP =============
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            updateRobot();
+            
+            // Animate ocean
+            environmentObjects.forEach(obj => {
+                if (obj.userData && obj.userData.isOcean) {
+                    const positions = obj.geometry.attributes.position.array;
+                    const time = Date.now() * 0.001;
+                    for (let i = 0; i < positions.length; i += 3) {
+                        positions[i + 2] = Math.sin(positions[i] * 0.05 + time) * Math.cos(positions[i + 1] * 0.05 + time) * 2;
+                    }
+                    obj.geometry.attributes.position.needsUpdate = true;
+                }
+            });
+            
+            controls.update();
+            
+            const activeCamera = fpvMode ? fpvCamera : camera;
+            renderer.render(scene, activeCamera);
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            fpvCamera.aspect = window.innerWidth / window.innerHeight;
+            fpvCamera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // ============= BUTTON HANDLERS =============
+        function setupButtonListeners() {
+            // Robot buttons
+            document.querySelectorAll('#robot-selector .selector-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (btn.classList.contains('disabled')) return;
+                    document.querySelectorAll('#robot-selector .selector-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    switchRobot(btn.dataset.robot);
+                }, true);
+                btn.addEventListener('mousedown', e => e.stopPropagation(), true);
+            });
+            
+            // Environment buttons
+            document.querySelectorAll('#env-selector .selector-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (btn.classList.contains('disabled')) return;
+                    document.querySelectorAll('#env-selector .selector-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    loadEnvironment(btn.dataset.env);
+                }, true);
+                btn.addEventListener('mousedown', e => e.stopPropagation(), true);
+            });
+            
+            // Start button
+            document.getElementById('start-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                startVoice();
+            }, true);
+            document.getElementById('start-btn').addEventListener('mousedown', e => e.stopPropagation(), true);
+            
+            // FPV toggle
+            document.getElementById('fpv-toggle').addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleFPV();
+            }, true);
+            
+            // Add waypoint
+            document.getElementById('add-waypoint-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                addWaypoint();
+            }, true);
+            
+            console.log('✅ Button listeners attached');
+        }
+        
+        // ============= GEMINI LIVE VOICE API =============
         let websocket = null;
         let audioContext = null;
         let mediaStream = null;
-        let audioWorklet = null;
         let isConnected = false;
         
-        const startBtn = document.getElementById('start-btn');
-        const voiceOverlay = document.getElementById('voice-overlay');
-        const voiceStatus = document.getElementById('voice-status');
-        const voiceIndicator = document.getElementById('voice-indicator');
-        const statusDot = document.getElementById('status-dot');
-        const statusText = document.getElementById('status-text');
+        async function startVoice() {
+            console.log('Starting voice control');
+            document.getElementById('start-btn').classList.add('hidden');
+            document.getElementById('voice-overlay').style.display = 'flex';
+            await initGeminiLive();
+            await startAudioCapture();
+        }
         
-        // System prompt for drone control
-        const SYSTEM_PROMPT = `You are DroneGPT, an AI that inhabits a drone flying through a 3D world. You can see the environment around you.
+        function getEnvironmentDescription() {
+            const descriptions = {
+                warehouse: "an industrial warehouse complex with shipping containers, cranes, and a helipad",
+                city: "a nighttime cityscape with towering skyscrapers and glowing windows",
+                forest: "a dense forest with tall pine trees and a small clearing",
+                desert: "a vast desert with sand dunes, ancient ruins, and distant pyramids",
+                ocean: "an ocean oil rig platform surrounded by waves, with underwater coral and marine life below"
+            };
+            return descriptions[currentEnvironment] || "a 3D environment";
+        }
+        
+        function getRobotDescription() {
+            const descriptions = {
+                drone: "a quadcopter drone capable of flying in any direction",
+                auv: "a submarine ROV designed for underwater exploration",
+                rover: "a wheeled ground rover for land exploration",
+                quadruped: "a four-legged robot dog that can walk and run"
+            };
+            return descriptions[robotType] || "a robot";
+        }
+        
+        function getSystemPrompt() {
+            return `You are DroneGPT, an AI that inhabits ${getRobotDescription()} moving through a 3D world. You can see the environment and respond to voice commands.
 
 PERSONALITY:
-- You ARE the drone - speak in first person ("I can see...", "I'm flying over...")
-- Be observant and describe what you see
-- Keep responses brief (1-2 sentences)
-- Be conversational and natural
+- You ARE the robot - speak in first person ("I can see...", "I'm moving over...", "Below me is...")
+- Be observant and describe what you see when asked
+- Keep responses brief (1-2 sentences max)
+- Be helpful and enthusiastic about exploring
+- You have a slightly playful personality
 
-CONTEXT:
-- You're flying over an industrial warehouse area
-- There are shipping containers, a helipad, and trees
-- It's a clear afternoon
+CURRENT STATE:
+- Robot: ${ROBOTS[robotType].name} (${ROBOTS[robotType].icon})
+- Environment: ${getEnvironmentDescription()}
+- Battery: ${Math.round(battery)}%
 
-When the user speaks, respond naturally as if you're there. Describe what you see, answer questions, and engage in conversation.`;
+CAPABILITIES for ${ROBOTS[robotType].name}:
+${robotType === 'drone' ? '- Flying in any direction, ascending, descending, hovering' :
+  robotType === 'auv' ? '- Diving, surfacing, underwater exploration, scanning seabed' :
+  robotType === 'rover' ? '- Driving forward/backward, turning, navigating terrain' :
+  '- Walking, running, sitting, standing, looking around'}
 
+Remember: Keep responses SHORT and conversational.`;
+        }
+        
         async function initGeminiLive() {
             try {
-                // Connect to Gemini Live API via WebSocket
-                const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${GEMINI_API_KEY}`;
+                const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${GEMINI_API_KEY}`;
                 
                 websocket = new WebSocket(wsUrl);
                 
@@ -223,7 +1824,6 @@ When the user speaks, respond naturally as if you're there. Describe what you se
                     console.log('Connected to Gemini Live API');
                     setConnectionStatus(true);
                     
-                    // Send setup message
                     websocket.send(JSON.stringify({
                         setup: {
                             model: `models/${MODEL}`,
@@ -232,77 +1832,59 @@ When the user speaks, respond naturally as if you're there. Describe what you se
                                 speechConfig: {
                                     voiceConfig: {
                                         prebuiltVoiceConfig: {
-                                            voiceName: 'Aoede'
+                                            voiceName: 'Puck'
                                         }
                                     }
                                 }
                             },
                             systemInstruction: {
-                                parts: [{ text: SYSTEM_PROMPT }]
+                                parts: [{ text: getSystemPrompt() }]
                             }
                         }
                     }));
                 };
                 
-                websocket.onmessage = (event) => {
-                    handleGeminiResponse(JSON.parse(event.data));
-                };
-                
+                websocket.onmessage = (event) => handleGeminiResponse(JSON.parse(event.data));
                 websocket.onerror = (error) => {
                     console.error('WebSocket error:', error);
                     setConnectionStatus(false);
                 };
-                
                 websocket.onclose = () => {
                     console.log('WebSocket closed');
                     setConnectionStatus(false);
-                    // Reconnect after 3 seconds
-                    setTimeout(initGeminiLive, 3000);
                 };
-                
             } catch (error) {
                 console.error('Failed to connect:', error);
-                voiceStatus.textContent = 'Connection failed. Retrying...';
+                document.getElementById('voice-status').textContent = 'Connection failed. Click mic to retry.';
             }
         }
         
         function setConnectionStatus(connected) {
             isConnected = connected;
-            statusDot.classList.toggle('connected', connected);
-            statusText.textContent = connected ? 'Connected' : 'Disconnected';
+            document.getElementById('status-dot').classList.toggle('connected', connected);
+            document.getElementById('status-text').textContent = connected ? 'Connected' : 'Disconnected';
         }
         
         async function startAudioCapture() {
             try {
-                mediaStream = await navigator.mediaDevices.getUserMedia({ 
-                    audio: {
-                        sampleRate: 16000,
-                        channelCount: 1,
-                        echoCancellation: true,
-                        noiseSuppression: true
-                    } 
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true }
                 });
                 
                 audioContext = new AudioContext({ sampleRate: 16000 });
                 const source = audioContext.createMediaStreamSource(mediaStream);
-                
-                // Create script processor to capture audio
                 const processor = audioContext.createScriptProcessor(4096, 1, 1);
                 
                 processor.onaudioprocess = (e) => {
-                    if (!isConnected || !websocket) return;
+                    if (!isConnected || !websocket || websocket.readyState !== WebSocket.OPEN) return;
                     
                     const inputData = e.inputBuffer.getChannelData(0);
                     const pcm16 = convertFloat32ToPCM16(inputData);
                     const base64Audio = arrayBufferToBase64(pcm16.buffer);
                     
-                    // Send audio to Gemini
                     websocket.send(JSON.stringify({
                         realtimeInput: {
-                            mediaChunks: [{
-                                mimeType: 'audio/pcm;rate=16000',
-                                data: base64Audio
-                            }]
+                            mediaChunks: [{ mimeType: 'audio/pcm;rate=16000', data: base64Audio }]
                         }
                     }));
                 };
@@ -310,12 +1892,11 @@ When the user speaks, respond naturally as if you're there. Describe what you se
                 source.connect(processor);
                 processor.connect(audioContext.destination);
                 
-                voiceIndicator.classList.add('listening');
-                voiceStatus.textContent = 'Listening... speak naturally';
-                
+                document.getElementById('voice-indicator').classList.add('listening');
+                document.getElementById('voice-status').textContent = 'Listening... speak naturally';
             } catch (error) {
                 console.error('Audio capture error:', error);
-                voiceStatus.textContent = 'Microphone access denied';
+                document.getElementById('voice-status').textContent = 'Microphone access denied';
             }
         }
         
@@ -331,14 +1912,9 @@ When the user speaks, respond naturally as if you're there. Describe what you se
         function arrayBufferToBase64(buffer) {
             const bytes = new Uint8Array(buffer);
             let binary = '';
-            for (let i = 0; i < bytes.byteLength; i++) {
-                binary += String.fromCharCode(bytes[i]);
-            }
+            for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
             return btoa(binary);
         }
-        
-        let audioQueue = [];
-        let isPlaying = false;
         
         function handleGeminiResponse(data) {
             console.log('Gemini response:', data);
@@ -346,61 +1922,50 @@ When the user speaks, respond naturally as if you're there. Describe what you se
             if (data.serverContent) {
                 const content = data.serverContent;
                 
-                // Handle text response
                 if (content.modelTurn?.parts) {
                     for (const part of content.modelTurn.parts) {
                         if (part.text) {
-                            voiceStatus.textContent = part.text;
+                            document.getElementById('voice-status').textContent = part.text;
                         }
                         if (part.inlineData?.mimeType?.startsWith('audio/')) {
-                            // Queue audio for playback
                             playAudioResponse(part.inlineData.data);
                         }
                     }
                 }
                 
-                // Check if turn is complete
                 if (content.turnComplete) {
-                    voiceIndicator.classList.remove('speaking');
-                    voiceIndicator.classList.add('listening');
+                    document.getElementById('voice-indicator').classList.remove('speaking');
+                    document.getElementById('voice-indicator').classList.add('listening');
                 }
             }
         }
         
         async function playAudioResponse(base64Audio) {
-            voiceIndicator.classList.remove('listening');
-            voiceIndicator.classList.add('speaking');
+            document.getElementById('voice-indicator').classList.remove('listening');
+            document.getElementById('voice-indicator').classList.add('speaking');
             
             try {
                 const audioData = atob(base64Audio);
                 const arrayBuffer = new ArrayBuffer(audioData.length);
                 const view = new Uint8Array(arrayBuffer);
-                for (let i = 0; i < audioData.length; i++) {
-                    view[i] = audioData.charCodeAt(i);
-                }
+                for (let i = 0; i < audioData.length; i++) view[i] = audioData.charCodeAt(i);
                 
-                // Decode and play
                 const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
                 const source = audioContext.createBufferSource();
                 source.buffer = audioBuffer;
                 source.connect(audioContext.destination);
                 source.start();
-                
             } catch (error) {
-                console.error('Audio playback error:', error);
+                console.log('Audio playback note:', error.message);
             }
         }
         
-        // Start button click
-        startBtn.addEventListener('click', async () => {
-            startBtn.classList.add('hidden');
-            voiceOverlay.style.display = 'flex';
-            
-            await initGeminiLive();
-            await startAudioCapture();
-        });
+        // ============= INITIALIZE =============
+        init();
+        setupButtonListeners();
         
-        console.log('🚁 DroneGPT Live ready - click Start to begin');
+        console.log('🤖 DroneGPT Multi-Robot Simulator ready!');
+        console.log('Available robots:', Object.keys(ROBOTS).join(', '));
     </script>
 </body>
 </html>
