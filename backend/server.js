@@ -59,7 +59,7 @@ If you're unsure, ask for clarification.`;
 async function processVoiceCommand(audioBase64, cameraFrame, sceneInfo, transcribedText) {
     try {
         const model = genAI.getGenerativeModel({ 
-            model: 'gemini-2.0-flash',
+            model: 'gemini-2.0-flash',  // Using Flash for audio + vision
             systemInstruction: SYSTEM_PROMPT
         });
 
