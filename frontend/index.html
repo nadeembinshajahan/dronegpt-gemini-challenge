@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DroneGPT — AI with a Body</title>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.162.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://unpkg.com/three@0.137.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.137.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://unpkg.com/three@0.137.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://unpkg.com/three@0.137.0/examples/js/loaders/RGBELoader.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
@@ -458,6 +460,126 @@
             0% { transform: translateY(-20px); }
             100% { transform: translateY(100vh); }
         }
+        
+        /* ============= MOBILE STYLES ============= */
+        @media (max-width: 768px) {
+            /* Compact control bar */
+            #control-bar {
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 5px;
+                padding: 6px 10px;
+                max-width: 95vw;
+            }
+            .selector-row {
+                flex-wrap: nowrap;
+                gap: 4px;
+            }
+            .selector-btn {
+                padding: 6px 8px;
+                font-size: 11px;
+            }
+            .selector-label {
+                display: none;
+            }
+            /* Hide clutter on mobile */
+            #hud, #telemetry, #minimap, #controls-hint, #waypoint-btn, #fpv-btn, .feature-buttons {
+                display: none !important;
+            }
+            /* Voice overlay at bottom */
+            #voice-overlay {
+                bottom: 150px;
+            }
+            #voice-status {
+                font-size: 13px;
+                padding: 8px 14px;
+                max-width: 85vw;
+            }
+            #start-btn {
+                padding: 14px 28px;
+                font-size: 15px;
+            }
+            #connection-status {
+                top: auto;
+                bottom: 10px;
+                right: 10px;
+                padding: 5px 10px;
+                font-size: 11px;
+            }
+        }
+        
+        /* Virtual Joystick for Mobile */
+        #mobile-controls {
+            display: none;
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            z-index: 500;
+            pointer-events: none;
+        }
+        @media (max-width: 768px) {
+            #mobile-controls { display: flex; justify-content: space-between; padding: 0 20px; }
+        }
+        .joystick-zone {
+            width: 90px;
+            height: 90px;
+            background: rgba(0, 200, 255, 0.1);
+            border: 2px solid rgba(0, 200, 255, 0.3);
+            border-radius: 50%;
+            position: relative;
+            pointer-events: auto;
+            touch-action: none;
+        }
+        .joystick-knob {
+            width: 50px;
+            height: 50px;
+            background: rgba(0, 200, 255, 0.5);
+            border: 2px solid #00c8ff;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: none;
+        }
+        .joystick-label {
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: #00c8ff;
+            text-transform: uppercase;
+        }
+        /* Vertical buttons for mobile */
+        #mobile-vertical {
+            display: none;
+            position: absolute;
+            bottom: 160px;
+            right: 20px;
+            z-index: 500;
+            flex-direction: column;
+            gap: 10px;
+        }
+        @media (max-width: 768px) {
+            #mobile-vertical { display: flex; }
+        }
+        .mobile-btn {
+            width: 50px;
+            height: 50px;
+            background: rgba(0, 200, 255, 0.2);
+            border: 2px solid rgba(0, 200, 255, 0.5);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+            pointer-events: auto;
+            touch-action: none;
+        }
+        .mobile-btn:active {
+            background: rgba(0, 200, 255, 0.5);
+        }
     </style>
 </head>
 <body>
@@ -465,6 +587,22 @@
         <div id="scene-container"></div>
         <div class="underwater-overlay" id="underwater-overlay"></div>
         <div id="weather-effects"></div>
+        
+        <!-- Mobile Touch Controls -->
+        <div id="mobile-controls">
+            <div class="joystick-zone" id="joystick-left">
+                <div class="joystick-knob" id="knob-left"></div>
+                <span class="joystick-label">Move</span>
+            </div>
+            <div class="joystick-zone" id="joystick-right">
+                <div class="joystick-knob" id="knob-right"></div>
+                <span class="joystick-label">Look</span>
+            </div>
+        </div>
+        <div id="mobile-vertical">
+            <button class="mobile-btn" id="btn-up">↑</button>
+            <button class="mobile-btn" id="btn-down">↓</button>
+        </div>
         
         <div class="ui-layer">
             <!-- Control Bar -->
@@ -478,11 +616,9 @@
                 </div>
                 <div class="selector-row" id="env-selector">
                     <span class="selector-label">ENV</span>
-                    <button class="selector-btn active" data-env="warehouse">🏭 Warehouse</button>
-                    <button class="selector-btn" data-env="city">🏙️ City</button>
-                    <button class="selector-btn" data-env="forest">🌲 Forest</button>
-                    <button class="selector-btn" data-env="desert">🏜️ Desert</button>
-                    <button class="selector-btn" data-env="ocean">🌊 Ocean</button>
+                    <button class="selector-btn active" data-env="london">🏙️ London</button>
+                    <button class="selector-btn" data-env="worldlabs2">🌆 Industrial</button>
+                    <button class="selector-btn" data-env="tokyo">🗼 Tokyo</button>
                 </div>
             </div>
             
@@ -588,8 +724,17 @@
             drone: {
                 name: 'Quadcopter',
                 icon: '🚁',
-                physics: { gravity: 0.15, drag: 0.95, thrust: 0.6, maxSpeed: 2 },
-                environments: ['warehouse', 'city', 'forest', 'desert', 'ocean'],
+                physics: { 
+                    gravity: 0.025,      // Realistic gravity (scaled for game feel)
+                    drag: 0.98,          // Air resistance
+                    thrust: 0.08,        // Acceleration per frame
+                    maxSpeed: 1.5,       // Terminal velocity
+                    hoverThrust: 0.025,  // Auto-hover compensation
+                    tiltResponse: 0.15,  // How fast drone tilts
+                    tiltMax: 0.4,        // Max tilt angle (radians)
+                    rotDrag: 0.92        // Rotational drag
+                },
+                environments: ['london', 'worldlabs2', 'warehouse', 'city', 'forest', 'desert', 'ocean'],
                 startHeight: 10,
                 controls: '<kbd>W/S</kbd> Forward/Back<br><kbd>A/D</kbd> Strafe<br><kbd>Q/E</kbd> Up/Down<br><kbd>←/→</kbd> Turn',
                 suggestions: ['fly higher', 'turn left', 'go forward', 'land', 'describe surroundings']
@@ -623,17 +768,24 @@
             }
         };
         
-        // Environment configurations
+        // Environment configurations with HDRI paths
         const ENVIRONMENTS = {
-            warehouse: { name: 'Warehouse', weather: ['clear', 'cloudy'] },
-            city: { name: 'Night City', weather: ['clear', 'rain'] },
-            forest: { name: 'Forest', weather: ['clear', 'cloudy', 'rain'] },
-            desert: { name: 'Desert', weather: ['clear', 'sandstorm'] },
-            ocean: { name: 'Ocean Platform', weather: ['clear', 'storm'], hasUnderwater: true }
+            london: { name: 'London City', weather: ['clear', 'cloudy'], hdri: 'hdri/urban.hdr', glb: 'environments/london-city.glb' },
+            worldlabs2: { name: 'World Labs 2', weather: ['clear', 'cloudy'], hdri: 'hdri/urban.hdr', glb: 'environments/worldlabs-env2.glb' },
+            warehouse: { name: 'Warehouse', weather: ['clear', 'cloudy'], hdri: 'hdri/warehouse.hdr' },
+            city: { name: 'Urban Sky', weather: ['clear', 'rain'], hdri: 'hdri/urban.hdr' },
+            forest: { name: 'Forest', weather: ['clear', 'cloudy', 'rain'], hdri: 'hdri/forest.hdr' },
+            desert: { name: 'Industrial', weather: ['clear', 'sandstorm'], hdri: 'hdri/industrial.hdr' },
+            ocean: { name: 'Coastal', weather: ['clear', 'storm'], hasUnderwater: true, hdri: 'hdri/coastal.hdr' },
+            tokyo: { name: 'Tokyo City (GLB)', weather: ['clear', 'rain'], hdri: 'hdri/urban.hdr' }
         };
+        
+        // HDRI loader instance
+        let hdriLoader;
         
         // ============= STATE =============
         let scene, camera, renderer, controls;
+        const mobileInput = { moveX: 0, moveY: 0, lookX: 0, lookY: 0, up: false, down: false };
         let robot, robotType = 'drone';
         let currentEnvironment = 'warehouse';
         let environmentObjects = [];
@@ -667,14 +819,19 @@
             // FPV Camera
             fpvCamera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 2000);
             
-            // Renderer
+            // Renderer with HDR support
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            renderer.toneMappingExposure = 1.0;
+            renderer.toneMappingExposure = 0.8;
+            renderer.outputEncoding = THREE.sRGBEncoding;
             document.getElementById('scene-container').appendChild(renderer.domElement);
+            
+            // Initialize HDRI loader
+            hdriLoader = new THREE.RGBELoader();
+            hdriLoader.setDataType(THREE.HalfFloatType);
             
             // Controls
             controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -686,12 +843,79 @@
             createRobot(robotType);
             
             // Load environment
-            loadEnvironment('warehouse');
+            loadEnvironment('london');
             
             // Event listeners
             window.addEventListener('resize', onWindowResize);
             document.addEventListener('keydown', (e) => keys[e.key.toLowerCase()] = true);
             document.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
+            
+            // ============= MOBILE TOUCH CONTROLS =============
+            // mobileInput is declared globally
+            
+            function setupJoystick(zoneId, knobId, onMove) {
+                const zone = document.getElementById(zoneId);
+                const knob = document.getElementById(knobId);
+                if (!zone || !knob) return;
+                
+                let active = false;
+                let startX, startY;
+                const maxDist = 35;
+                
+                zone.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    active = true;
+                    const touch = e.touches[0];
+                    const rect = zone.getBoundingClientRect();
+                    startX = rect.left + rect.width / 2;
+                    startY = rect.top + rect.height / 2;
+                }, { passive: false });
+                
+                zone.addEventListener('touchmove', (e) => {
+                    if (!active) return;
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    let dx = touch.clientX - startX;
+                    let dy = touch.clientY - startY;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist > maxDist) {
+                        dx = dx / dist * maxDist;
+                        dy = dy / dist * maxDist;
+                    }
+                    knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+                    onMove(dx / maxDist, dy / maxDist);
+                }, { passive: false });
+                
+                const endTouch = () => {
+                    active = false;
+                    knob.style.transform = 'translate(-50%, -50%)';
+                    onMove(0, 0);
+                };
+                zone.addEventListener('touchend', endTouch);
+                zone.addEventListener('touchcancel', endTouch);
+            }
+            
+            setupJoystick('joystick-left', 'knob-left', (x, y) => {
+                mobileInput.moveX = x;
+                mobileInput.moveY = y;
+            });
+            
+            setupJoystick('joystick-right', 'knob-right', (x, y) => {
+                mobileInput.lookX = x;
+                mobileInput.lookY = y;
+            });
+            
+            // Up/Down buttons
+            const btnUp = document.getElementById('btn-up');
+            const btnDown = document.getElementById('btn-down');
+            if (btnUp) {
+                btnUp.addEventListener('touchstart', (e) => { e.preventDefault(); mobileInput.up = true; }, { passive: false });
+                btnUp.addEventListener('touchend', () => mobileInput.up = false);
+            }
+            if (btnDown) {
+                btnDown.addEventListener('touchstart', (e) => { e.preventDefault(); mobileInput.down = true; }, { passive: false });
+                btnDown.addEventListener('touchend', () => mobileInput.down = false);
+            }
             
             // Initialize minimap
             initMinimap();
@@ -985,12 +1209,105 @@
             environmentObjects = [];
         }
         
+        // Load HDRI environment map
+        function loadHDRI(hdriPath, callback) {
+            if (!hdriLoader) {
+                console.warn('HDRI loader not initialized');
+                if (callback) callback(null);
+                return;
+            }
+            
+            hdriLoader.load(hdriPath, (texture) => {
+                texture.mapping = THREE.EquirectangularReflectionMapping;
+                scene.background = texture;
+                scene.environment = texture;
+                console.log('HDRI loaded:', hdriPath);
+                if (callback) callback(texture);
+            }, undefined, (err) => {
+                console.error('HDRI load error:', err);
+                // Fallback to solid color
+                scene.background = new THREE.Color(0x87ceeb);
+                if (callback) callback(null);
+            });
+        }
+        
+        // Load GLB environment (World Labs exports)
+        function createGLBEnv(glbPath) {
+            // Light fog for atmosphere
+            scene.fog = new THREE.FogExp2(0x888888, 0.002);
+            
+            // Ambient light (HDRI provides most lighting)
+            const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambient);
+            environmentObjects.push(ambient);
+            
+            // Directional light for shadows
+            const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+            sun.position.set(50, 100, 50);
+            sun.castShadow = true;
+            sun.shadow.mapSize.width = 2048;
+            sun.shadow.mapSize.height = 2048;
+            sun.shadow.camera.near = 0.5;
+            sun.shadow.camera.far = 200;
+            sun.shadow.camera.left = -50;
+            sun.shadow.camera.right = 50;
+            sun.shadow.camera.top = 50;
+            sun.shadow.camera.bottom = -50;
+            scene.add(sun);
+            environmentObjects.push(sun);
+            
+            // Load GLB model
+            const loader = new THREE.GLTFLoader();
+            loader.load(glbPath, (gltf) => {
+                const model = gltf.scene;
+                
+                // Get model bounds
+                const box = new THREE.Box3().setFromObject(model);
+                const center = box.getCenter(new THREE.Vector3());
+                const size = box.getSize(new THREE.Vector3());
+                
+                // World Labs models are already sized realistically
+                // Just center and position at origin, no scaling
+                model.position.set(-center.x, -box.min.y, -center.z);
+                
+                // Enable shadows
+                model.traverse((child) => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                    }
+                });
+                
+                scene.add(model);
+                environmentObjects.push(model);
+                
+                // Position drone at a good starting point inside the environment
+                const startHeight = Math.min(size.y * 0.3, 5); // 30% up or max 5 units
+                robotState.position.set(0, startHeight, 0);
+                robotState.velocity.set(0, 0, 0);
+                
+                // Adjust camera to see the environment
+                camera.position.set(size.x * 0.3, size.y * 0.4, size.z * 0.3);
+                controls.target.set(0, startHeight, 0);
+                controls.update();
+                
+                console.log('GLB environment loaded:', glbPath, 'Size:', size.x.toFixed(1), 'x', size.y.toFixed(1), 'x', size.z.toFixed(1));
+            }, undefined, (err) => {
+                console.error('GLB load error:', err);
+            });
+        }
+        
         function loadEnvironment(envName) {
             clearEnvironment();
             currentEnvironment = envName;
             
             const envCfg = ENVIRONMENTS[envName];
             document.getElementById('env-name').textContent = envCfg.name;
+            
+            // Load HDRI skybox first
+            if (envCfg.hdri) {
+                loadHDRI(envCfg.hdri);
+            }
             
             // Set weather
             weather = envCfg.weather[Math.floor(Math.random() * envCfg.weather.length)];
@@ -1008,11 +1325,14 @@
             }
             
             switch(envName) {
+                case 'london': createGLBEnv('environments/london-city.glb'); break;
+                case 'worldlabs2': createGLBEnv('environments/worldlabs-env2.glb'); break;
                 case 'warehouse': createWarehouseEnv(); break;
                 case 'city': createCityEnv(); break;
                 case 'forest': createForestEnv(); break;
                 case 'desert': createDesertEnv(); break;
                 case 'ocean': createOceanEnv(); break;
+                case 'tokyo': createTokyoEnv(); break;
             }
             
             // Update underwater state
@@ -1029,10 +1349,10 @@
         }
         
         function createWarehouseEnv() {
-            scene.background = new THREE.Color(0x87ceeb);
-            scene.fog = new THREE.Fog(0x87ceeb, 100, 500);
+            // HDRI provides background, minimal fog for depth
+            scene.fog = new THREE.FogExp2(0x888888, 0.002);
             
-            // Lighting
+            // Lighting (reduced since HDRI provides ambient)
             const ambient = new THREE.AmbientLight(0xffffff, 0.5);
             scene.add(ambient);
             environmentObjects.push(ambient);
@@ -1096,8 +1416,8 @@
         }
         
         function createCityEnv() {
-            scene.background = new THREE.Color(0x1a1a2e);
-            scene.fog = new THREE.Fog(0x1a1a2e, 50, 300);
+            // HDRI provides background
+            scene.fog = new THREE.FogExp2(0x1a1a2e, 0.003);
             
             const ambient = new THREE.AmbientLight(0x404060, 0.3);
             scene.add(ambient);
@@ -1143,8 +1463,8 @@
         }
         
         function createForestEnv() {
-            scene.background = new THREE.Color(0x228b22);
-            scene.fog = new THREE.Fog(0x228b22, 30, 150);
+            // HDRI provides background
+            scene.fog = new THREE.FogExp2(0x1a3a1a, 0.008);
             
             const ambient = new THREE.AmbientLight(0x404030, 0.6);
             scene.add(ambient);
@@ -1193,8 +1513,8 @@
         }
         
         function createDesertEnv() {
-            scene.background = new THREE.Color(0xffd89b);
-            scene.fog = new THREE.Fog(0xffd89b, 100, 400);
+            // HDRI provides background
+            scene.fog = new THREE.FogExp2(0xaa8866, 0.002);
             
             const ambient = new THREE.AmbientLight(0xffeedd, 0.5);
             scene.add(ambient);
@@ -1241,8 +1561,8 @@
         }
         
         function createOceanEnv() {
-            scene.background = new THREE.Color(0x006994);
-            scene.fog = new THREE.Fog(0x006994, 50, 300);
+            // HDRI provides background
+            scene.fog = new THREE.FogExp2(0x006994, 0.003);
             
             const ambient = new THREE.AmbientLight(0x88aacc, 0.6);
             scene.add(ambient);
@@ -1320,6 +1640,57 @@
             }
         }
         
+        // ============= TOKYO GLB ENVIRONMENT =============
+        function createTokyoEnv() {
+            // HDRI provides background
+            scene.fog = new THREE.FogExp2(0x888888, 0.002);
+            
+            const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambient);
+            environmentObjects.push(ambient);
+            
+            const sun = new THREE.DirectionalLight(0xffffff, 1);
+            sun.position.set(50, 100, 50);
+            sun.castShadow = true;
+            scene.add(sun);
+            environmentObjects.push(sun);
+            
+            // Ground (fallback)
+            const ground = new THREE.Mesh(
+                new THREE.PlaneGeometry(500, 500),
+                new THREE.MeshStandardMaterial({ color: 0x444444 })
+            );
+            ground.rotation.x = -Math.PI / 2;
+            scene.add(ground);
+            environmentObjects.push(ground);
+            
+            // Load Tokyo GLB
+            const loader = new THREE.GLTFLoader();
+            loader.load(
+                'environments/tokyo.glb',
+                function(gltf) {
+                    const model = gltf.scene;
+                    model.scale.set(0.5, 0.5, 0.5); // Adjust scale as needed
+                    model.position.set(0, 0, 0);
+                    model.traverse(function(child) {
+                        if (child.isMesh) {
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                        }
+                    });
+                    scene.add(model);
+                    environmentObjects.push(model);
+                    console.log('Tokyo GLB loaded!');
+                },
+                function(xhr) {
+                    console.log('Loading: ' + (xhr.loaded / xhr.total * 100).toFixed(0) + '%');
+                },
+                function(error) {
+                    console.error('Error loading GLB:', error);
+                }
+            );
+        }
+        
         // ============= WEATHER SYSTEM =============
         function updateWeatherUI() {
             const icons = { clear: '☀️', cloudy: '☁️', rain: '🌧️', storm: '⛈️', sandstorm: '🌪️' };
@@ -1345,54 +1716,147 @@
         }
         
         // ============= ROBOT PHYSICS =============
+        // Drone state for smooth physics
+        let targetTiltX = 0, targetTiltZ = 0;
+        let currentTiltX = 0, currentTiltZ = 0;
+        let yawVelocity = 0;
+        
         function updateRobot() {
             const cfg = ROBOTS[robotType];
             const physics = cfg.physics;
-            const speed = physics.thrust;
-            const rotSpeed = 0.04;
+            const thrust = physics.thrust;
+            const rotSpeed = 0.03;
             
-            // Input handling based on robot type
-            if (robotType === 'drone' || robotType === 'auv') {
-                // Flying/swimming - full 3D movement
-                if (keys['w']) {
-                    robotState.velocity.z -= speed * Math.cos(robot.rotation.y);
-                    robotState.velocity.x -= speed * Math.sin(robot.rotation.y);
+            // Input handling based on robot type (keyboard + mobile)
+            const moveForward = keys['w'] || mobileInput.moveY < -0.2;
+            const moveBack = keys['s'] || mobileInput.moveY > 0.2;
+            const moveLeft = keys['a'] || mobileInput.moveX < -0.2;
+            const moveRight = keys['d'] || mobileInput.moveX > 0.2;
+            const lookLeft = keys['arrowleft'] || mobileInput.lookX < -0.2;
+            const lookRight = keys['arrowright'] || mobileInput.lookX > 0.2;
+            const goUp = keys['q'] || mobileInput.up;
+            const goDown = keys['e'] || mobileInput.down;
+            
+            // Mobile input strength (0-1)
+            const mobileStrength = Math.max(Math.abs(mobileInput.moveX), Math.abs(mobileInput.moveY));
+            const mobileMult = mobileStrength > 0.2 ? mobileStrength : 1;
+            
+            if (robotType === 'drone') {
+                // Realistic quadcopter physics
+                const p = physics;
+                
+                // Calculate desired acceleration based on input
+                let accelX = 0, accelZ = 0, accelY = 0;
+                
+                if (moveForward) {
+                    accelZ -= thrust * mobileMult * Math.cos(robot.rotation.y);
+                    accelX -= thrust * mobileMult * Math.sin(robot.rotation.y);
                 }
-                if (keys['s']) {
-                    robotState.velocity.z += speed * Math.cos(robot.rotation.y);
-                    robotState.velocity.x += speed * Math.sin(robot.rotation.y);
+                if (moveBack) {
+                    accelZ += thrust * mobileMult * Math.cos(robot.rotation.y);
+                    accelX += thrust * mobileMult * Math.sin(robot.rotation.y);
                 }
-                if (keys['a']) {
-                    robotState.velocity.x -= speed * Math.cos(robot.rotation.y);
-                    robotState.velocity.z += speed * Math.sin(robot.rotation.y);
+                if (moveLeft) {
+                    accelX -= thrust * mobileMult * Math.cos(robot.rotation.y);
+                    accelZ += thrust * mobileMult * Math.sin(robot.rotation.y);
                 }
-                if (keys['d']) {
-                    robotState.velocity.x += speed * Math.cos(robot.rotation.y);
-                    robotState.velocity.z -= speed * Math.sin(robot.rotation.y);
+                if (moveRight) {
+                    accelX += thrust * mobileMult * Math.cos(robot.rotation.y);
+                    accelZ -= thrust * mobileMult * Math.sin(robot.rotation.y);
                 }
-                if (keys['q']) robotState.velocity.y += speed * 0.8;
-                if (keys['e']) robotState.velocity.y -= speed * 0.8;
-                if (keys['arrowleft']) robot.rotation.y += rotSpeed;
-                if (keys['arrowright']) robot.rotation.y -= rotSpeed;
+                
+                // Vertical thrust
+                if (goUp) accelY = thrust * 1.5;
+                else if (goDown) accelY = -thrust * 1.2;
+                else accelY = p.hoverThrust; // Auto-hover compensation
+                
+                // Apply gravity
+                accelY -= p.gravity;
+                
+                // Apply acceleration to velocity
+                robotState.velocity.x += accelX;
+                robotState.velocity.y += accelY;
+                robotState.velocity.z += accelZ;
+                
+                // Apply drag (quadratic for realism at high speeds)
+                const speed = robotState.velocity.length();
+                if (speed > 0.01) {
+                    const dragFactor = Math.pow(p.drag, 1 + speed * 0.5);
+                    robotState.velocity.multiplyScalar(dragFactor);
+                }
+                
+                // Clamp max speed
+                if (speed > p.maxSpeed) {
+                    robotState.velocity.normalize().multiplyScalar(p.maxSpeed);
+                }
+                
+                // Yaw rotation with momentum
+                if (lookLeft) yawVelocity += rotSpeed;
+                if (lookRight) yawVelocity -= rotSpeed;
+                yawVelocity *= (p.rotDrag || 0.92);
+                robot.rotation.y += yawVelocity;
+                
+                // Calculate target tilt based on horizontal velocity (in local space)
+                const localVelX = robotState.velocity.x * Math.cos(robot.rotation.y) + robotState.velocity.z * Math.sin(robot.rotation.y);
+                const localVelZ = robotState.velocity.z * Math.cos(robot.rotation.y) - robotState.velocity.x * Math.sin(robot.rotation.y);
+                
+                targetTiltX = -localVelZ * (p.tiltResponse || 0.15);
+                targetTiltZ = localVelX * (p.tiltResponse || 0.15);
+                
+                // Clamp tilt
+                const maxTilt = p.tiltMax || 0.4;
+                targetTiltX = Math.max(-maxTilt, Math.min(maxTilt, targetTiltX));
+                targetTiltZ = Math.max(-maxTilt, Math.min(maxTilt, targetTiltZ));
+                
+                // Smooth tilt transition (like real drone stabilization)
+                currentTiltX += (targetTiltX - currentTiltX) * 0.1;
+                currentTiltZ += (targetTiltZ - currentTiltZ) * 0.1;
+                
+                robot.rotation.x = currentTiltX;
+                robot.rotation.z = currentTiltZ;
+                
+            } else if (robotType === 'auv') {
+                // AUV physics (keep existing)
+                const speed = thrust;
+                if (moveForward) {
+                    robotState.velocity.z -= speed * mobileMult * Math.cos(robot.rotation.y);
+                    robotState.velocity.x -= speed * mobileMult * Math.sin(robot.rotation.y);
+                }
+                if (moveBack) {
+                    robotState.velocity.z += speed * mobileMult * Math.cos(robot.rotation.y);
+                    robotState.velocity.x += speed * mobileMult * Math.sin(robot.rotation.y);
+                }
+                if (moveLeft) {
+                    robotState.velocity.x -= speed * mobileMult * Math.cos(robot.rotation.y);
+                    robotState.velocity.z += speed * mobileMult * Math.sin(robot.rotation.y);
+                }
+                if (moveRight) {
+                    robotState.velocity.x += speed * mobileMult * Math.cos(robot.rotation.y);
+                    robotState.velocity.z -= speed * mobileMult * Math.sin(robot.rotation.y);
+                }
+                if (goUp) robotState.velocity.y += speed * 0.8;
+                if (goDown) robotState.velocity.y -= speed * 0.8;
+                if (lookLeft) robot.rotation.y += rotSpeed * (1 + Math.abs(mobileInput.lookX));
+                if (lookRight) robot.rotation.y -= rotSpeed * (1 + Math.abs(mobileInput.lookX));
             } else {
                 // Ground vehicles - different controls
-                if (keys['w']) {
-                    robotState.velocity.z -= speed * Math.cos(robot.rotation.y);
-                    robotState.velocity.x -= speed * Math.sin(robot.rotation.y);
+                if (moveForward) {
+                    robotState.velocity.z -= speed * mobileMult * Math.cos(robot.rotation.y);
+                    robotState.velocity.x -= speed * mobileMult * Math.sin(robot.rotation.y);
                 }
-                if (keys['s']) {
-                    robotState.velocity.z += speed * 0.5 * Math.cos(robot.rotation.y);
-                    robotState.velocity.x += speed * 0.5 * Math.sin(robot.rotation.y);
+                if (moveBack) {
+                    robotState.velocity.z += speed * 0.5 * mobileMult * Math.cos(robot.rotation.y);
+                    robotState.velocity.x += speed * 0.5 * mobileMult * Math.sin(robot.rotation.y);
                 }
-                if (keys['a']) robot.rotation.y += rotSpeed;
-                if (keys['d']) robot.rotation.y -= rotSpeed;
+                if (moveLeft || lookLeft) robot.rotation.y += rotSpeed;
+                if (moveRight || lookRight) robot.rotation.y -= rotSpeed;
                 if (keys[' ']) robotState.velocity.multiplyScalar(0.9); // Brake
             }
             
             // Physics simulation
             // Gravity (different for each robot type)
             if (robotType === 'drone') {
-                robotState.velocity.y -= physics.gravity;
+                // Drone physics handled above
             } else if (robotType === 'auv') {
                 // Buoyancy at certain depth
                 if (robot.position.y < -2) {
@@ -1443,13 +1907,12 @@
             
             // Visual effects
             if (robotType === 'drone') {
-                // Tilt based on velocity
-                robot.rotation.x = -robotState.velocity.z * 0.2;
-                robot.rotation.z = robotState.velocity.x * 0.2;
+                // Tilt already calculated in drone physics above
                 
-                // Spin propellers
+                // Spin propellers (faster when moving)
+                const propSpeed = 0.3 + robotState.velocity.length() * 0.3;
                 robot.children.forEach(child => {
-                    if (child.userData.isPropeller) child.rotation.y += 0.5;
+                    if (child.userData.isPropeller) child.rotation.y += propSpeed;
                 });
             } else if (robotType === 'auv') {
                 // Slight pitch/roll
