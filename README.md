@@ -1,137 +1,167 @@
-# DroneGPT Multi-Robot Simulator 🤖
+# STADO — Voice-Controlled Drone Simulator 🚁
 
-**AI with a Body** — Control multiple robots through natural voice commands using Gemini Live API.
+> **StratoFirma Tactical Autonomous Drone Orchestration**
+> 
+> Speak to drones. They fly.
+
+Powered by **Gemini 2.0 Live API** — real-time multimodal AI that sees, hears, and acts.
 
 ## 🎮 Live Demo
+
 **URL:** https://hood-freely-routers-bench.trycloudflare.com
-
-## 🚀 Features
-
-### Multiple Robot Types
-| Robot | Icon | Description | Environments |
-|-------|------|-------------|--------------|
-| **Quadcopter Drone** | 🚁 | Flying drone with 4 propellers | All environments |
-| **AUV/ROV** | 🤿 | Underwater submarine robot | Ocean only |
-| **Ground Rover** | 🚗 | Wheeled exploration vehicle | Land only |
-| **Quadruped** | 🐕 | Four-legged robot dog | Land only |
-
-### Environments
-- 🏭 **Warehouse** — Industrial complex with containers and cranes
-- 🏙️ **Night City** — Cyberpunk cityscape with glowing buildings
-- 🌲 **Forest** — Dense woodland with trees and clearings
-- 🏜️ **Desert** — Sand dunes, pyramids, and ancient ruins
-- 🌊 **Ocean** — Oil platform with underwater exploration
-
-### Physics System
-Each robot has unique physics:
-- **Drone:** Thrust, gravity, air drag, tilt-based movement
-- **AUV:** Buoyancy, water resistance, 6DOF underwater
-- **Rover:** Wheel physics, friction, suspension
-- **Quadruped:** Leg IK, trot gait animation, balance
-
-### Additional Features
-- 👁️ **FPV Camera** — First-person view from robot's perspective
-- 📍 **Waypoints** — Mark and navigate to positions
-- 🗺️ **Minimap** — Real-time position tracking
-- 🔋 **Battery** — Simulated power consumption
-- 🌧️ **Weather** — Rain, storms, sandstorms per environment
-- 💬 **Voice Suggestions** — On-screen command hints
-
-## 🎤 Voice Commands
-
-### General
-- "What do you see?"
-- "Describe your surroundings"
-- "Check battery level"
-
-### Drone
-- "Fly higher" / "Descend"
-- "Turn left/right"
-- "Go forward"
-- "Land"
-
-### AUV
-- "Dive deeper"
-- "Surface"
-- "Scan the seabed"
-- "Check depth"
-
-### Rover
-- "Drive forward"
-- "Turn around"
-- "Stop"
-
-### Quadruped
-- "Walk forward"
-- "Run"
-- "Sit"
-- "Stand up"
-
-## ⌨️ Keyboard Controls
-
-### Flying (Drone/AUV)
-- `W/S` — Forward/Back
-- `A/D` — Strafe Left/Right
-- `Q/E` — Up/Down (Dive/Surface for AUV)
-- `←/→` — Turn
-
-### Ground (Rover/Quadruped)
-- `W/S` — Forward/Back
-- `A/D` — Turn
-- `Space` — Brake/Sit
-
-## 🛠️ Local Development
-
-```bash
-cd ~/clawd/builds/gemini-drone-challenge
-
-# Install dependencies
-cd backend && npm install
-
-# Start server
-node server.js
-
-# Open http://localhost:8080
-```
-
-## 📁 Project Structure
-```
-gemini-drone-challenge/
-├── frontend/
-│   └── index.html      # Complete multi-robot simulator
-├── backend/
-│   └── server.js       # Express server + Gemini proxy
-└── README.md
-```
-
-## 🔧 Configuration
-
-The Gemini API key is embedded in the frontend for the demo. For production:
-1. Move API key to environment variable
-2. Proxy through backend for security
-
-## 🎯 Testing Checklist
-- [x] Buttons click properly (fixed!)
-- [x] Robot switching works
-- [x] Environment switching works
-- [x] Physics feel natural for each robot
-- [x] FPV camera toggles
-- [x] Waypoints can be added
-- [x] Minimap updates
-- [x] Voice control connects
-- [x] Gemini responds to voice
-
-## 🏆 Gemini Live Agent Challenge Entry
-
-This project demonstrates **"AI with a Body"** — physical AI controlling robots in 3D environments via natural language. Built for the Gemini Live Agent Challenge.
-
-### What Makes It Special
-1. **Multiple Robot Types** — Not just drones, but submarines, rovers, and robot dogs
-2. **Realistic Physics** — Each robot feels different to control
-3. **Immersive Environments** — From warehouses to underwater exploration
-4. **Voice First** — Natural language control via Gemini Live
-5. **FPV Mode** — See through the robot's eyes
 
 ---
 
-Built with ❤️ using Three.js and Gemini Live API
+## 🧪 Reproducible Testing Instructions (For Judges)
+
+### Option 1: Use Live Demo (Fastest)
+1. Open https://hood-freely-routers-bench.trycloudflare.com
+2. Click the microphone button
+3. Say: "Fly higher" or "Turn left" or "What do you see?"
+4. Use keyboard (WASD + QE) as backup controls
+
+### Option 2: Run Locally
+
+```bash
+# Clone the repo
+git clone https://github.com/nadeembinshajahan/dronegpt-gemini-challenge.git
+cd dronegpt-gemini-challenge
+
+# Install dependencies
+cd backend
+npm install
+
+# Set environment variables (optional - demo uses embedded key)
+export GEMINI_API_KEY=your_key_here
+
+# Start the server
+node server.js
+
+# Open browser
+# http://localhost:8080
+```
+
+### Option 3: Deploy to Cloud Run
+
+```bash
+# Build and deploy
+gcloud run deploy stado \
+  --source . \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --set-env-vars GEMINI_API_KEY=$GEMINI_API_KEY
+```
+
+---
+
+## 🏗️ Architecture
+
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│   Voice Input   │────▶│  Gemini 2.0 Live │────▶│  Drone Control  │
+│   (WebRTC)      │     │  (Multimodal AI) │     │  (Three.js)     │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+```
+
+**Tech Stack:**
+- **AI:** Gemini 2.0 Flash Live API
+- **Frontend:** Three.js (WebGL)
+- **Backend:** Node.js + Express
+- **Environments:** World Labs GLB + Polyhaven HDRI
+- **Deployment:** Google Cloud Run
+
+---
+
+## 🎤 Voice Commands
+
+| Say This | Drone Does |
+|----------|------------|
+| "Fly higher" | Ascend |
+| "Go forward" | Move forward |
+| "Turn left/right" | Rotate yaw |
+| "What do you see?" | Describe scene |
+| "Land" | Descend |
+| "Stop" | Hover |
+
+---
+
+## ⌨️ Keyboard Controls
+
+| Key | Action |
+|-----|--------|
+| W/S | Forward / Back |
+| A/D | Strafe Left / Right |
+| Q/E | Ascend / Descend |
+| ←/→ | Turn Left / Right |
+
+---
+
+## 🚁 Features
+
+- **Voice-First Control** — Talk to the drone naturally
+- **Realistic Physics** — Acceleration, drag, auto-hover, tilt stabilization
+- **World Labs Environments** — AI-generated 3D scenes (London, Industrial)
+- **HDRI Lighting** — Photorealistic skyboxes
+- **Multi-Robot Support** — Drone, AUV, Rover, Quadruped
+- **FPV Camera** — First-person view
+- **Live Telemetry** — Position, speed, altitude HUD
+
+---
+
+## 📁 Project Structure
+
+```
+stado/
+├── frontend/
+│   ├── index.html          # Main app (Three.js + Gemini)
+│   ├── environments/       # GLB models (World Labs)
+│   └── hdri/              # Skybox HDRIs (Polyhaven)
+├── backend/
+│   ├── server.js          # Express + WebSocket
+│   └── .env               # API keys
+├── DRONEGPT.md            # Full project description
+├── DEVPOST_SUBMISSION.md  # Submission content
+└── README.md              # This file
+```
+
+---
+
+## 🔧 Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `GEMINI_API_KEY` | Google AI API key |
+| `PORT` | Server port (default: 8080) |
+
+---
+
+## 🌍 Environments
+
+| Name | Source | Description |
+|------|--------|-------------|
+| London City | World Labs | Urban streets, buildings |
+| Industrial | World Labs | Warehouse, containers |
+| Tokyo | GLB | City scene |
+
+---
+
+## 🎯 Gemini Live Agent Challenge
+
+**Category:** Live Agents 🗣️
+
+**What it demonstrates:**
+- Real-time voice interaction with Gemini Live API
+- Multimodal AI (audio → intent → action)
+- Physical AI — giving language models a body
+
+**Built by:** Stratofirma Autonomy Labs (SF Autonomy)
+
+---
+
+## 📄 License
+
+MIT License
+
+---
+
+*"The best interface is no interface. Just say what you want."*

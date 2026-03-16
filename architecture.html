@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            margin: 0;
+            padding: 40px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            background: rgba(255,255,255,0.03);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 1000px;
+        }
+        h1 {
+            color: #fff;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #888;
+            text-align: center;
+            margin-bottom: 40px;
+            font-size: 14px;
+        }
+        .diagram {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+        .layer {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            padding: 20px 30px;
+            color: white;
+            text-align: center;
+            min-width: 150px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .box.gemini {
+            background: linear-gradient(135deg, #4285f4 0%, #34a853 50%, #fbbc04 100%);
+            min-width: 300px;
+        }
+        .box.gcp {
+            background: linear-gradient(135deg, #4285f4 0%, #0f9d58 100%);
+        }
+        .box.frontend {
+            background: linear-gradient(135deg, #00c8ff 0%, #0088cc 100%);
+        }
+        .box.env {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .box-title {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+        .box-desc {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        .arrow {
+            color: #00c8ff;
+            font-size: 24px;
+            text-align: center;
+        }
+        .layer-label {
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        .connection {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            color: #00c8ff;
+        }
+        .line {
+            height: 2px;
+            width: 50px;
+            background: linear-gradient(90deg, transparent, #00c8ff, transparent);
+        }
+        .tech-list {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+        .tech {
+            background: rgba(255,255,255,0.1);
+            padding: 8px 16px;
+            border-radius: 20px;
+            color: #aaa;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚁 STADO Architecture</h1>
+        <div class="subtitle">StratoFirma Tactical Autonomous Drone Orchestration</div>
+        
+        <div class="diagram">
+            <!-- User Layer -->
+            <div class="layer-label">User Interface</div>
+            <div class="layer">
+                <div class="box frontend">
+                    <div class="box-title">🎤 Voice Input</div>
+                    <div class="box-desc">WebRTC Audio Stream</div>
+                </div>
+                <div class="box frontend">
+                    <div class="box-title">🖥️ 3D Simulator</div>
+                    <div class="box-desc">Three.js + WebGL</div>
+                </div>
+                <div class="box frontend">
+                    <div class="box-title">📊 Telemetry HUD</div>
+                    <div class="box-desc">Position, Speed, Alt</div>
+                </div>
+            </div>
+            
+            <div class="arrow">↕️</div>
+            
+            <!-- AI Layer -->
+            <div class="layer-label">AI Processing (Google Cloud)</div>
+            <div class="layer">
+                <div class="box gemini">
+                    <div class="box-title">🧠 Gemini 2.0 Live API</div>
+                    <div class="box-desc">Multimodal Understanding • Intent Extraction • Scene Analysis</div>
+                </div>
+            </div>
+            
+            <div class="arrow">↕️</div>
+            
+            <!-- Backend Layer -->
+            <div class="layer-label">Backend (Cloud Run)</div>
+            <div class="layer">
+                <div class="box gcp">
+                    <div class="box-title">⚡ Node.js Server</div>
+                    <div class="box-desc">WebSocket Relay</div>
+                </div>
+                <div class="box gcp">
+                    <div class="box-title">🔄 Command Translator</div>
+                    <div class="box-desc">Intent → Drone Actions</div>
+                </div>
+            </div>
+            
+            <div class="arrow">↕️</div>
+            
+            <!-- Environment Layer -->
+            <div class="layer-label">3D Environments</div>
+            <div class="layer">
+                <div class="box env">
+                    <div class="box-title">🌆 World Labs GLB</div>
+                    <div class="box-desc">AI-Generated 3D Scenes</div>
+                </div>
+                <div class="box env">
+                    <div class="box-title">☀️ Polyhaven HDRI</div>
+                    <div class="box-desc">Photorealistic Lighting</div>
+                </div>
+            </div>
+            
+            <div class="tech-list">
+                <span class="tech">Gemini 2.0 Flash Live</span>
+                <span class="tech">Google Cloud Run</span>
+                <span class="tech">GenAI SDK</span>
+                <span class="tech">Three.js</span>
+                <span class="tech">WebRTC</span>
+                <span class="tech">World Labs</span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
