@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>body{margin:0;overflow:hidden}#info{position:fixed;top:10px;left:10px;color:#0f0;font:14px monospace;background:rgba(0,0,0,0.7);padding:10px;z-index:10;white-space:pre}</style>
+</head>
+<body>
+<div id="info">Loading...</div>
+<script type="module">
+const THREE = await import('https://esm.sh/three@0.170.0');
+const { OrbitControls } = await import('https://esm.sh/three@0.170.0/examples/jsm/controls/OrbitControls.js');
+const { TilesRenderer } = await import('https://esm.sh/3d-tiles-renderer@0.4.22?deps=three@0.170.0');
+const { GoogleCloudAuthPlugin } = await import('https://esm.sh/3d-tiles-renderer@0.4.22/plugins?deps=three@0.170.0');
+
+const API_KEY = 'AIzaSyBflzJwR_fITxCfU909B7Kmoo06EWGSqW8';
+const info = document.getElementById('info');
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 1, 2e8);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(devicePixelRatio);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.minDistance = 10;
+controls.maxDistance = 1e8;
+
+scene.add(new THREE.AmbientLight(0xffffff, 2));
+const sun = new THREE.DirectionalLight(0xffffff, 2);
+sun.position.set(1e7, 1e7, 1e7);
+scene.add(sun);
+
+// Google 3D Tiles
+const tiles = new TilesRenderer();
+tiles.registerPlugin(new GoogleCloudAuthPlugin({ apiToken: API_KEY }));
+// NO group rotation — use raw ECEF (Z-up) and put camera in Z-up space too
+tiles.errorTarget = 2;
+tiles.setCamera(camera);
+tiles.setResolutionFromRenderer(camera, renderer);
+scene.add(tiles.group);
+
+// WGS84 — raw ECEF (X=greenwich, Y=90E, Z=north pole)
+const A = 6378137, E2 = 0.00669437999014;
+function geoToECEF(lat, lng, alt) {
+    const lr = lat * Math.PI / 180, gr = lng * Math.PI / 180;
+    const N = A / Math.sqrt(1 - E2 * Math.sin(lr) ** 2);
+    return new THREE.Vector3(
+        (N + alt) * Math.cos(lr) * Math.cos(gr),
+        (N + alt) * Math.cos(lr) * Math.sin(gr),
+        (N * (1 - E2) + alt) * Math.sin(lr)
+    );
+}
+
+// NYC
+const lat = 40.7484, lng = -73.9857;
+const surface = geoToECEF(lat, lng, 0);
+const camPt = geoToECEF(lat, lng, 500);
+const upDir = surface.clone().normalize();
+
+camera.position.copy(camPt);
+camera.up.copy(upDir);
+controls.target.copy(surface);
+
+// Red marker
+const marker = new THREE.Mesh(new THREE.SphereGeometry(50), new THREE.MeshBasicMaterial({color:0xff0000}));
+marker.position.copy(surface);
+scene.add(marker);
+
+info.textContent = `Camera at ${camPt.length().toFixed(0)}m from origin\nSurface at ${surface.length().toFixed(0)}m\nDiff: ${(camPt.length()-surface.length()).toFixed(0)}m`;
+
+function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    tiles.setCamera(camera);
+    tiles.setResolutionFromRenderer(camera, renderer);
+    tiles.update();
+    renderer.render(scene, camera);
+
+    const d = camera.position.distanceTo(surface);
+    const loaded = tiles.visibleTiles ? tiles.visibleTiles.size : 0;
+    info.textContent = `Cam dist to NYC: ${d.toFixed(0)}m | Tiles: ${loaded}\nScroll to zoom. Drag to orbit.\nCam from origin: ${camera.position.length().toFixed(0)}m`;
+}
+animate();
+
+window.addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

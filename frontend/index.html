@@ -4,767 +4,383 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DroneGPT — AI with a Body</title>
-    <script src="https://unpkg.com/three@0.137.0/build/three.min.js"></script>
-    <script src="https://unpkg.com/three@0.137.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://unpkg.com/three@0.137.0/examples/js/loaders/GLTFLoader.js"></script>
-    <script src="https://unpkg.com/three@0.137.0/examples/js/loaders/RGBELoader.js"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/"
+        }
+    }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-primary: #0a0c10;
+            --bg-panel: rgba(13, 17, 23, 0.92);
+            --bg-panel-solid: #0d1117;
+            --border: rgba(48, 54, 61, 0.6);
+            --border-accent: rgba(56, 139, 253, 0.4);
+            --accent: #388bfd;
+            --accent-dim: rgba(56, 139, 253, 0.15);
+            --text-primary: #e6edf3;
+            --text-secondary: #7d8590;
+            --text-dim: #484f58;
+            --success: #3fb950;
+            --warning: #d29922;
+            --danger: #f85149;
+            --mono: 'JetBrains Mono', 'Consolas', monospace;
+            --sans: 'Inter', -apple-system, sans-serif;
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0a0a0f;
-            color: #fff;
+        body {
+            font-family: var(--sans);
+            background: var(--bg-primary);
+            color: var(--text-primary);
             overflow: hidden;
         }
-        #container { 
-            width: 100vw; 
-            height: 100vh; 
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .ui-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 100;
-        }
-        .ui-layer > * {
-            pointer-events: auto;
-        }
-        #scene-container { 
-            width: 100%; 
-            height: 100%; 
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 1;
-        }
-        
-        /* Top Control Bar — compact, wrapping */
-        #control-bar {
-            position: absolute;
-            top: 12px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1000;
-            display: flex;
-            flex-direction: row;
-            flex-wrap: wrap;
-            justify-content: center;
-            align-items: center;
-            gap: 6px;
-            max-width: 90vw;
-        }
+        #container { width: 100vw; height: 100vh; position: relative; overflow: hidden; }
+        .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100; }
+        .ui-layer > * { pointer-events: auto; }
+        #scene-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
 
-        /* Environment & Robot Selectors */
+        /* === TOP CONTROL BAR === */
+        #control-bar {
+            position: absolute; top: 0; left: 0; right: 0;
+            z-index: 1000; display: flex; justify-content: center; align-items: center;
+            gap: 2px; padding: 6px 12px;
+            background: linear-gradient(180deg, rgba(10, 12, 16, 0.95) 0%, rgba(10, 12, 16, 0.7) 100%);
+            border-bottom: 1px solid var(--border);
+        }
         .selector-row {
-            display: flex;
-            gap: 4px;
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(10px);
-            padding: 4px 8px;
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex; gap: 1px;
+            background: var(--bg-panel); border: 1px solid var(--border);
+            border-radius: 4px; padding: 2px;
         }
         .selector-btn {
-            padding: 5px 10px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 14px;
-            color: #aaa;
-            cursor: pointer;
-            font-size: 11px;
-            transition: all 0.2s;
-            white-space: nowrap;
+            padding: 5px 12px; background: transparent;
+            border: 1px solid transparent; border-radius: 3px;
+            color: var(--text-secondary); cursor: pointer;
+            font-size: 11px; font-family: var(--mono); font-weight: 400;
+            transition: all 0.15s; white-space: nowrap; letter-spacing: 0.3px;
         }
-        .selector-btn:hover { background: rgba(0, 200, 255, 0.15); color: #fff; }
+        .selector-btn:hover { background: var(--accent-dim); color: var(--text-primary); }
         .selector-btn.active {
-            background: rgba(0, 200, 255, 0.25);
-            color: #fff;
-            border-color: rgba(0, 200, 255, 0.5);
-            font-weight: 500;
+            background: var(--accent-dim); color: var(--accent);
+            border-color: var(--border-accent); font-weight: 500;
         }
-        .selector-btn.disabled {
-            opacity: 0.3;
-            cursor: not-allowed;
-            pointer-events: none;
-        }
+        .selector-btn.disabled { opacity: 0.25; cursor: not-allowed; pointer-events: none; }
         .selector-label {
-            font-size: 9px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #555;
-            padding: 5px 6px 5px 2px;
+            font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px;
+            color: var(--text-dim); padding: 5px 8px 5px 4px; font-family: var(--mono); font-weight: 500;
         }
         
-        /* Voice Controls */
+        /* === VOICE CONTROLS === */
         #voice-overlay {
-            position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 12px;
-            z-index: 1000;
+            position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+            display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 1000;
         }
-        
-        #voice-suggestions {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            justify-content: center;
-            max-width: 600px;
-        }
-        .voice-suggestion {
-            background: rgba(0, 0, 0, 0.6);
-            border: 1px solid rgba(0, 200, 255, 0.3);
-            border-radius: 15px;
-            padding: 6px 12px;
-            font-size: 11px;
-            color: #aaa;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .voice-suggestion:hover {
-            background: rgba(0, 200, 255, 0.2);
-            color: #fff;
-        }
-        
+        #voice-suggestions { display: none; }
         #voice-status {
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            padding: 12px 24px;
-            max-width: 600px;
-            text-align: center;
-            min-height: 44px;
+            background: rgba(0,0,0,0.85); border: 1px solid var(--border);
+            border-radius: 4px; padding: 10px 20px; max-width: 700px;
+            text-align: center; min-height: 40px; font-size: 13px;
+            font-family: var(--sans); color: #e6edf3; line-height: 1.5;
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.6);
         }
-        
         #voice-indicator {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: rgba(0, 200, 255, 0.2);
-            border: 2px solid #00c8ff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s;
-            cursor: pointer;
+            width: 52px; height: 52px; border-radius: 4px;
+            background: var(--bg-panel); border: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s; cursor: pointer;
         }
         #voice-indicator.listening {
-            background: #00c8ff;
-            animation: pulse 1.5s infinite;
+            background: var(--accent-dim); border-color: var(--accent);
+            animation: pulse-square 1.5s infinite;
         }
         #voice-indicator.speaking {
-            background: #00ff88;
-            border-color: #00ff88;
-            animation: pulse 0.8s infinite;
+            background: rgba(63, 185, 80, 0.15); border-color: var(--success);
+            animation: pulse-square 0.8s infinite;
         }
-        @keyframes pulse {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(0, 200, 255, 0.4); transform: scale(1); }
-            50% { box-shadow: 0 0 0 15px rgba(0, 200, 255, 0); transform: scale(1.05); }
+        @keyframes pulse-square {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(56, 139, 253, 0.3); }
+            50% { box-shadow: 0 0 0 8px rgba(56, 139, 253, 0); }
         }
-        #voice-indicator svg { width: 28px; height: 28px; fill: #fff; }
-        
-        /* Start Button — compact, bottom center */
+        #voice-indicator svg { width: 24px; height: 24px; fill: var(--text-primary); }
         #start-btn {
-            position: absolute;
-            bottom: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 10px 24px;
-            font-size: 13px;
-            background: linear-gradient(135deg, #00c8ff, #0088cc);
-            border: none;
-            border-radius: 20px;
-            color: #000;
-            cursor: pointer;
-            font-weight: 600;
-            z-index: 2000;
-            box-shadow: 0 4px 20px rgba(0, 200, 255, 0.3);
+            position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+            padding: 10px 28px; font-size: 12px; font-family: var(--mono); font-weight: 500;
+            background: var(--accent-dim); border: 1px solid var(--accent);
+            border-radius: 4px; color: var(--accent); cursor: pointer;
+            z-index: 2000; letter-spacing: 0.5px; text-transform: uppercase;
+            transition: all 0.15s;
         }
-        #start-btn:hover { transform: translateX(-50%) scale(1.05); }
+        #start-btn:hover { background: var(--accent); color: var(--bg-primary); transform: translateX(-50%); }
         #start-btn.hidden { display: none; }
         
-        /* HUD — compact left sidebar */
+        /* === HUD — bottom left === */
         #hud {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            z-index: 1000;
-            pointer-events: none;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
+            position: absolute; bottom: 16px; left: 16px; z-index: 1000;
+            pointer-events: none; display: flex; flex-direction: column; gap: 6px;
         }
         .hud-panel {
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(0, 200, 255, 0.25);
-            border-radius: 10px;
-            padding: 8px 12px;
+            background: var(--bg-panel); border: 1px solid var(--border);
+            border-radius: 4px; padding: 8px 10px;
         }
         .hud-title {
-            font-size: 8px;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            color: #00c8ff;
-            margin-bottom: 2px;
+            font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px;
+            color: var(--text-dim); margin-bottom: 4px; font-family: var(--mono); font-weight: 500;
         }
-        .hud-value {
-            font-size: 12px;
-            font-weight: 600;
-        }
-        .hud-icon {
-            font-size: 16px;
-            margin-right: 6px;
-        }
-        
-        /* Battery/Fuel */
+        .hud-value { font-size: 13px; font-weight: 500; font-family: var(--mono); color: var(--text-primary); }
+        .hud-icon { font-size: 14px; margin-right: 4px; }
         #battery-bar {
-            width: 100%;
-            height: 6px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 3px;
-            margin-top: 8px;
-            overflow: hidden;
+            width: 100%; height: 4px; background: rgba(255,255,255,0.06);
+            border-radius: 2px; margin-top: 6px; overflow: hidden;
         }
         #battery-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #00ff88, #88ff00);
-            border-radius: 3px;
-            transition: width 0.3s;
+            height: 100%; background: var(--success); border-radius: 2px; transition: width 0.3s;
         }
-        #battery-fill.low { background: linear-gradient(90deg, #ff4444, #ff8800); }
-        
-        /* Telemetry — horizontal strip, top right */
+        #battery-fill.low { background: var(--danger); }
+
+        /* === TELEMETRY — top right row === */
         #telemetry {
-            position: absolute;
-            top: 60px;
-            right: 20px;
-            z-index: 1000;
-            pointer-events: none;
-            display: flex;
-            gap: 6px;
-        }
-        .telemetry-row {
-            display: flex;
-            gap: 6px;
+            position: absolute; top: 42px; right: 16px; z-index: 1000;
+            pointer-events: none; display: flex; gap: 2px;
         }
         .telemetry-item {
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(0, 200, 255, 0.25);
-            border-radius: 6px;
-            padding: 4px 8px;
-            min-width: 55px;
-            text-align: center;
+            background: var(--bg-panel); border: 1px solid var(--border);
+            border-radius: 3px; padding: 4px 10px; min-width: 60px; text-align: center;
         }
         .telemetry-label {
-            font-size: 7px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #666;
+            font-size: 8px; text-transform: uppercase; letter-spacing: 1px;
+            color: var(--text-dim); font-family: var(--mono);
         }
         .telemetry-value {
-            font-size: 12px;
-            font-weight: 600;
-            color: #00c8ff;
-            font-family: 'Courier New', monospace;
+            font-size: 13px; font-weight: 500; color: var(--accent);
+            font-family: var(--mono);
         }
-        
-        /* Connection Status — smaller pill */
+
+        /* === CONNECTION STATUS === */
         #connection-status {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 5px 12px;
-            border-radius: 15px;
-            pointer-events: auto;
-            font-size: 11px;
+            position: absolute; top: 6px; right: 16px; z-index: 1000;
+            display: flex; align-items: center; gap: 6px;
+            background: var(--bg-panel); border: 1px solid var(--border);
+            padding: 4px 12px; border-radius: 3px;
+            pointer-events: auto; font-size: 11px; font-family: var(--mono);
         }
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #ff4444;
-        }
-        .status-dot.connected { background: #00ff88; }
-        
-        /* FPV Toggle — hidden, replaced by always-on PiP */
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+        .status-dot.connected { background: var(--success); }
+
         #fpv-toggle { display: none !important; }
-        
-        /* FPV Picture-in-Picture — separate renderer */
+
+        /* === FPV PiP === */
         #fpv-pip {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            width: 280px;
-            height: 180px;
-            background: #000;
-            border: 2px solid rgba(0, 200, 255, 0.5);
-            border-radius: 12px;
-            overflow: hidden;
-            z-index: 1000;
-            pointer-events: none;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            position: absolute; bottom: 16px; right: 16px;
+            width: 280px; height: 180px; background: #000;
+            border: 1px solid var(--border); border-radius: 4px;
+            overflow: hidden; z-index: 1000; pointer-events: auto; cursor: pointer;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+            transition: all 0.3s ease;
+        }
+        #fpv-pip.fullscreen {
+            top: 0; left: 0; right: 0; bottom: 0;
+            width: 100%; height: 100%;
+            border-radius: 0; border: none; z-index: 200;
         }
         #fpv-pip-label {
-            position: absolute;
-            top: 6px;
-            left: 8px;
-            font-size: 9px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #00c8ff;
-            background: rgba(0, 0, 0, 0.6);
-            padding: 2px 6px;
-            border-radius: 4px;
-            pointer-events: none;
+            position: absolute; top: 4px; left: 6px;
+            font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px;
+            color: var(--accent); font-family: var(--mono); font-weight: 500;
+            background: rgba(10, 12, 16, 0.8); padding: 2px 6px;
+            border-radius: 2px; pointer-events: none;
         }
         #fpv-pip .fpv-crosshair {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 20px;
-            height: 20px;
-            pointer-events: none;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 20px; height: 20px; pointer-events: none;
         }
         #fpv-pip .fpv-crosshair::before,
-        #fpv-pip .fpv-crosshair::after {
-            content: '';
-            position: absolute;
-            background: rgba(0, 255, 136, 0.6);
-        }
-        #fpv-pip .fpv-crosshair::before {
-            width: 20px; height: 1px;
-            top: 50%; left: 0;
-        }
-        #fpv-pip .fpv-crosshair::after {
-            width: 1px; height: 20px;
-            left: 50%; top: 0;
+        #fpv-pip .fpv-crosshair::after { content: ''; position: absolute; background: rgba(56, 139, 253, 0.5); }
+        #fpv-pip .fpv-crosshair::before { width: 20px; height: 1px; top: 50%; left: 0; }
+        #fpv-pip .fpv-crosshair::after { width: 1px; height: 20px; left: 50%; top: 0; }
+
+        #minimap { display: none !important; }
+
+        /* === WAYPOINTS PANEL === */
+        #waypoints-panel { display: none !important; }
+
+        /* === WEATHER INDICATOR === */
+        #weather-indicator {
+            position: absolute; top: 6px; right: 180px; z-index: 1000;
+            background: var(--bg-panel); border: 1px solid var(--border);
+            padding: 4px 10px; border-radius: 3px;
+            font-size: 10px; font-family: var(--mono); display: flex; align-items: center; gap: 6px;
         }
 
-        /* Minimap - hidden, replaced by FPV PiP */
-        #minimap { display: none !important; }
-        
-        /* Waypoints Panel */
-        #waypoints-panel {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            z-index: 1000;
-            background: rgba(0, 0, 0, 0.75);
-            border: 1px solid rgba(0, 200, 255, 0.3);
-            border-radius: 12px;
-            padding: 12px;
-            min-width: 160px;
-            pointer-events: auto;
-        }
-        #waypoints-panel h4 {
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #00c8ff;
-            margin-bottom: 8px;
-        }
-        .waypoint-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 4px 0;
-            font-size: 11px;
-            color: #aaa;
-        }
-        .waypoint-item.active { color: #00ff88; }
-        .waypoint-item.completed { color: #666; text-decoration: line-through; }
-        .waypoint-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #00c8ff;
-        }
-        .waypoint-dot.active { background: #00ff88; animation: pulse 1s infinite; }
-        .waypoint-dot.completed { background: #444; }
-        #add-waypoint-btn {
-            width: 100%;
-            margin-top: 8px;
-            padding: 6px;
-            background: rgba(0, 200, 255, 0.2);
-            border: 1px solid rgba(0, 200, 255, 0.3);
-            border-radius: 6px;
-            color: #fff;
-            font-size: 10px;
-            cursor: pointer;
-        }
-        #add-waypoint-btn:hover { background: rgba(0, 200, 255, 0.3); }
-        
-        /* Weather Indicator — subtle top right */
-        #weather-indicator {
-            position: absolute;
-            top: 42px;
-            right: 20px;
-            z-index: 1000;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 3px 8px;
-            border-radius: 10px;
-            font-size: 10px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        
-        /* Controls Hint — small and transparent */
+        /* === CONTROLS HINT === */
         #controls-hint {
-            position: absolute;
-            bottom: 210px;
-            left: 20px;
-            z-index: 1000;
-            pointer-events: none;
-            background: rgba(0, 0, 0, 0.4);
-            padding: 6px 10px;
-            border-radius: 6px;
-            font-size: 10px;
-            color: #666;
-            max-width: 160px;
-            line-height: 1.4;
+            position: absolute; bottom: 210px; left: 16px; z-index: 1000;
+            pointer-events: none; background: var(--bg-panel); border: 1px solid var(--border);
+            padding: 6px 10px; border-radius: 3px;
+            font-size: 10px; color: var(--text-dim); max-width: 150px; line-height: 1.5;
+            font-family: var(--mono);
         }
         #controls-hint kbd {
-            background: rgba(255,255,255,0.1);
-            padding: 1px 4px;
-            border-radius: 2px;
-            font-family: monospace;
-            font-size: 9px;
-            color: #888;
+            background: rgba(255,255,255,0.06); padding: 1px 4px; border-radius: 2px;
+            font-family: var(--mono); font-size: 9px; color: var(--text-secondary);
+            border: 1px solid var(--border);
         }
-
-        /* Waypoints Panel — hidden by default */
-        #waypoints-panel { display: none !important; }
         
-        /* Underwater Effect */
         .underwater-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            background: linear-gradient(180deg, rgba(0, 80, 120, 0.3), rgba(0, 40, 60, 0.5));
-            z-index: 50;
-            opacity: 0;
-            transition: opacity 0.5s;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; background: linear-gradient(180deg, rgba(0, 60, 100, 0.25), rgba(0, 30, 50, 0.45));
+            z-index: 50; opacity: 0; transition: opacity 0.5s;
         }
         .underwater-overlay.active { opacity: 1; }
-        
-        /* Weather Effects */
         #weather-effects {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 49;
-            overflow: hidden;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 49; overflow: hidden;
         }
         .rain {
-            position: absolute;
-            width: 2px;
-            height: 20px;
-            background: linear-gradient(transparent, rgba(174, 194, 224, 0.5));
+            position: absolute; width: 1px; height: 20px;
+            background: linear-gradient(transparent, rgba(174, 194, 224, 0.4));
             animation: rain-fall 0.5s linear infinite;
         }
-        @keyframes rain-fall {
-            0% { transform: translateY(-20px); }
-            100% { transform: translateY(100vh); }
+        @keyframes rain-fall { 0% { transform: translateY(-20px); } 100% { transform: translateY(100vh); } }
+        
+        @media (max-width: 768px) {
+            #control-bar { flex-wrap: wrap; gap: 4px; padding: 4px 8px; }
+            .selector-btn { padding: 5px 8px; font-size: 10px; }
+            .selector-label { display: none; }
+            #hud, #telemetry, #minimap, #controls-hint, #waypoint-btn, #fpv-btn, .feature-buttons { display: none !important; }
+            #voice-overlay { bottom: 120px; }
+            #voice-status { font-size: 12px; padding: 8px 14px; max-width: 85vw; }
+            #start-btn { padding: 12px 24px; font-size: 12px; }
+            #connection-status { top: auto; bottom: 8px; right: 8px; }
         }
         
-        /* ============= MOBILE STYLES ============= */
-        @media (max-width: 768px) {
-            /* Compact control bar */
-            #control-bar {
-                flex-direction: row;
-                flex-wrap: wrap;
-                gap: 5px;
-                padding: 6px 10px;
-                max-width: 95vw;
-            }
-            .selector-row {
-                flex-wrap: nowrap;
-                gap: 4px;
-            }
-            .selector-btn {
-                padding: 6px 8px;
-                font-size: 11px;
-            }
-            .selector-label {
-                display: none;
-            }
-            /* Hide clutter on mobile */
-            #hud, #telemetry, #minimap, #controls-hint, #waypoint-btn, #fpv-btn, .feature-buttons {
-                display: none !important;
-            }
-            /* Voice overlay at bottom */
-            #voice-overlay {
-                bottom: 150px;
-            }
-            #voice-status {
-                font-size: 13px;
-                padding: 8px 14px;
-                max-width: 85vw;
-            }
-            #start-btn {
-                padding: 14px 28px;
-                font-size: 15px;
-            }
-            #connection-status {
-                top: auto;
-                bottom: 10px;
-                right: 10px;
-                padding: 5px 10px;
-                font-size: 11px;
-            }
-        }
-        
-        /* Virtual Joystick for Mobile */
-        #mobile-controls {
-            display: none;
-            position: absolute;
-            bottom: 20px;
-            left: 0;
-            right: 0;
-            z-index: 500;
-            pointer-events: none;
-        }
-        @media (max-width: 768px) {
-            #mobile-controls { display: flex; justify-content: space-between; padding: 0 20px; }
-        }
+        /* Mobile controls */
+        #mobile-controls { display: none; position: absolute; bottom: 20px; left: 0; right: 0; z-index: 500; pointer-events: none; }
+        @media (max-width: 768px) { #mobile-controls { display: flex; justify-content: space-between; padding: 0 20px; } }
         .joystick-zone {
-            width: 90px;
-            height: 90px;
-            background: rgba(0, 200, 255, 0.1);
-            border: 2px solid rgba(0, 200, 255, 0.3);
-            border-radius: 50%;
-            position: relative;
-            pointer-events: auto;
-            touch-action: none;
+            width: 80px; height: 80px; background: rgba(56, 139, 253, 0.08);
+            border: 1px solid var(--border-accent); border-radius: 50%;
+            position: relative; pointer-events: auto; touch-action: none;
         }
         .joystick-knob {
-            width: 50px;
-            height: 50px;
-            background: rgba(0, 200, 255, 0.5);
-            border: 2px solid #00c8ff;
-            border-radius: 50%;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            transition: none;
+            width: 40px; height: 40px; background: rgba(56, 139, 253, 0.3);
+            border: 1px solid var(--accent); border-radius: 50%;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
         }
-        .joystick-label {
-            position: absolute;
-            bottom: -25px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 10px;
-            color: #00c8ff;
-            text-transform: uppercase;
-        }
-        /* Vertical buttons for mobile */
-        #mobile-vertical {
-            display: none;
-            position: absolute;
-            bottom: 160px;
-            right: 20px;
-            z-index: 500;
-            flex-direction: column;
-            gap: 10px;
-        }
-        @media (max-width: 768px) {
-            #mobile-vertical { display: flex; }
-        }
+        .joystick-label { position: absolute; bottom: -22px; left: 50%; transform: translateX(-50%); font-size: 9px; color: var(--accent); font-family: var(--mono); text-transform: uppercase; }
+        #mobile-vertical { display: none; position: absolute; bottom: 150px; right: 16px; z-index: 500; flex-direction: column; gap: 8px; }
+        @media (max-width: 768px) { #mobile-vertical { display: flex; } }
         .mobile-btn {
-            width: 50px;
-            height: 50px;
-            background: rgba(0, 200, 255, 0.2);
-            border: 2px solid rgba(0, 200, 255, 0.5);
-            border-radius: 12px;
-            color: #fff;
-            font-size: 20px;
-            cursor: pointer;
-            pointer-events: auto;
-            touch-action: none;
+            width: 44px; height: 44px; background: var(--accent-dim);
+            border: 1px solid var(--border-accent); border-radius: 4px;
+            color: var(--text-primary); font-size: 18px; cursor: pointer;
+            pointer-events: auto; touch-action: none; font-family: var(--mono);
         }
-        .mobile-btn:active {
-            background: rgba(0, 200, 255, 0.5);
-        }
+        .mobile-btn:active { background: var(--accent); }
 
-        /* Attitude Indicator */
+        /* Attitude indicator */
         #attitude-panel { text-align: center; }
-        #attitude-canvas { border-radius: 50%; border: 2px solid rgba(0, 200, 255, 0.4); }
+        #attitude-canvas { border-radius: 50%; border: 1px solid var(--border); }
 
-        /* Compass Strip — below control bar */
+        /* Compass */
         #compass-container {
-            position: absolute;
-            top: 52px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 999;
-            pointer-events: none;
+            position: absolute; top: 36px; left: 50%; transform: translateX(-50%);
+            z-index: 999; pointer-events: none;
         }
-        #compass-canvas {
-            border-radius: 4px;
-            background: rgba(0, 0, 0, 0.7);
-            border: 1px solid rgba(0, 200, 255, 0.3);
-        }
+        #compass-canvas { border-radius: 3px; background: rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.15); backdrop-filter: blur(8px); }
 
-        /* FPV Crosshair */
-        #fpv-hud {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none;
-            z-index: 90;
-            display: none;
-        }
-        #fpv-hud .crosshair {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-        }
-        #fpv-hud .crosshair-h {
-            position: absolute;
-            width: 40px; height: 2px;
-            background: rgba(0, 255, 136, 0.7);
-            top: 50%; transform: translateY(-50%);
-        }
+        /* FPV HUD */
+        #fpv-hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 90; display: none; }
+        #fpv-hud .crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        #fpv-hud .crosshair-h { position: absolute; width: 40px; height: 1px; background: rgba(56, 139, 253, 0.5); top: 50%; transform: translateY(-50%); }
         #fpv-hud .crosshair-h.left { left: -30px; }
         #fpv-hud .crosshair-h.right { left: 10px; }
-        #fpv-hud .crosshair-v {
-            position: absolute;
-            width: 2px; height: 40px;
-            background: rgba(0, 255, 136, 0.7);
-            left: 50%; transform: translateX(-50%);
-        }
+        #fpv-hud .crosshair-v { position: absolute; width: 1px; height: 40px; background: rgba(56, 139, 253, 0.5); left: 50%; transform: translateX(-50%); }
         #fpv-hud .crosshair-v.top { top: -30px; }
         #fpv-hud .crosshair-v.bot { top: 10px; }
-        #fpv-hud .crosshair-dot {
-            position: absolute;
-            width: 6px; height: 6px;
-            border-radius: 50%;
-            background: rgba(0, 255, 136, 0.9);
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-        }
-        #fpv-hud .velocity-vector {
-            position: absolute;
-            width: 10px; height: 10px;
-            border: 2px solid rgba(0, 255, 136, 0.6);
-            border-radius: 50%;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            transition: transform 0.1s;
-        }
+        #fpv-hud .crosshair-dot { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        #fpv-hud .velocity-vector { position: absolute; width: 8px; height: 8px; border: 1px solid rgba(56, 139, 253, 0.5); border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%); transition: transform 0.1s; }
 
-        /* Toast Notifications */
+        /* Toast notifications */
         #toast-container {
-            position: absolute;
-            top: 100px;
-            right: 20px;
-            z-index: 2000;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            pointer-events: none;
-            max-width: 300px;
+            position: absolute; top: 80px; right: 16px; z-index: 2000;
+            display: flex; flex-direction: column; gap: 4px;
+            pointer-events: none; max-width: 340px;
         }
         .toast {
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(0, 200, 255, 0.4);
-            border-left: 3px solid #00c8ff;
-            border-radius: 8px;
-            padding: 10px 14px;
-            color: #fff;
-            font-size: 13px;
-            animation: toast-in 0.3s ease-out, toast-out 0.3s ease-in 4.7s forwards;
-            pointer-events: auto;
+            background: var(--bg-panel); border: 1px solid var(--border);
+            border-left: 2px solid var(--accent); border-radius: 3px;
+            padding: 8px 12px; color: var(--text-primary); font-size: 12px;
+            font-family: var(--sans); line-height: 1.4;
+            animation: toast-in 0.2s ease-out, toast-out 0.2s ease-in 4.8s forwards;
         }
         .toast .toast-label {
-            font-size: 9px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #00c8ff;
-            margin-bottom: 4px;
+            font-size: 8px; text-transform: uppercase; letter-spacing: 1.5px;
+            color: var(--accent); margin-bottom: 3px; font-family: var(--mono); font-weight: 500;
         }
-        @keyframes toast-in {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        @keyframes toast-out {
-            from { opacity: 1; }
-            to { opacity: 0; transform: translateY(-10px); }
-        }
+        @keyframes toast-in { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes toast-out { from { opacity: 1; } to { opacity: 0; } }
 
-        /* Audio Waveform */
-        #waveform-canvas {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 90px; height: 90px;
-            pointer-events: none;
-            z-index: -1;
+        /* Audio waveform */
+        #waveform-canvas { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80px; height: 80px; pointer-events: none; z-index: -1; }
+
+        /* Transcript panel */
+        #transcript-panel {
+            position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
+            width: 500px; max-height: 200px; overflow-y: auto;
+            z-index: 1000; pointer-events: none;
+            display: flex; flex-direction: column; gap: 4px;
         }
+        .transcript-msg {
+            padding: 8px 14px; border-radius: 4px; font-size: 13px;
+            font-family: var(--mono); line-height: 1.4; max-width: 90%;
+            animation: transcript-fade 0.2s ease-in;
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+        }
+        .transcript-msg.user {
+            background: rgba(0,0,0,0.85); border: 1px solid rgba(255,255,255,0.3);
+            color: #ffffff; align-self: flex-end; text-align: right;
+        }
+        .transcript-msg.agent {
+            background: rgba(0,0,0,0.85); border: 1px solid rgba(56,139,253,0.4);
+            color: #e6edf3; align-self: flex-start;
+        }
+        @keyframes transcript-fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         #voice-indicator { position: relative; }
 
-        /* Google Maps Container */
-        #maps-container {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            z-index: 1;
-            display: none;
-        }
+        /* Google Maps */
+        #maps-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; display: none; }
         #maps-city-selector {
-            display: none;
-            gap: 6px;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(10px);
-            padding: 6px 12px;
-            border-radius: 20px;
-            border: 1px solid rgba(0, 200, 255, 0.3);
+            display: none; gap: 2px;
+            background: var(--bg-panel); border: 1px solid var(--border);
+            padding: 2px; border-radius: 4px;
         }
         #maps-city-selector.visible { display: flex; }
 
-        /* Wind Indicator */
+        /* Wind indicator */
         #wind-indicator {
-            position: absolute;
-            top: 60px;
-            left: 20px;
-            z-index: 1000;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 4px 10px;
-            border-radius: 10px;
-            font-size: 10px;
-            display: none;
-            align-items: center;
-            gap: 4px;
-            pointer-events: none;
+            position: absolute; top: 6px; right: 280px; z-index: 1000;
+            background: var(--bg-panel); border: 1px solid var(--border);
+            padding: 4px 10px; border-radius: 3px;
+            font-size: 10px; font-family: var(--mono); display: flex; align-items: center; gap: 4px;
+            color: var(--text-secondary); opacity: 0;
         }
-        #wind-indicator.active { display: flex; }
+        #wind-indicator.active { opacity: 1; }
+
+        /* Speed indicator */
+        #speed-indicator {
+            position: absolute; top: 6px; left: 16px; z-index: 1000;
+            font-size: 11px; font-family: var(--mono); color: var(--text-dim);
+            display: flex; align-items: center; gap: 4px;
+        }
+
+        /* Old wind indicator override — use new styles above */
         #wind-arrow {
             display: inline-block;
             transition: transform 0.5s;
@@ -816,22 +432,22 @@
             <div id="control-bar">
                 <div class="selector-row" id="robot-selector">
                     <span class="selector-label">ROBOT</span>
-                    <button class="selector-btn active" data-robot="drone">🚁 Drone</button>
-                    <button class="selector-btn" data-robot="auv">🤿 AUV</button>
-                    <button class="selector-btn" data-robot="rover">🚗 Rover</button>
+                    <button class="selector-btn active" data-robot="drone">DRONE</button>
+                    <button class="selector-btn" data-robot="auv">AUV</button>
+                    <button class="selector-btn" data-robot="rover">ROVER</button>
                 </div>
                 <div class="selector-row" id="env-selector">
                     <span class="selector-label">ENV</span>
-                    <button class="selector-btn active" data-env="london">🏙️ London</button>
-                    <button class="selector-btn" data-env="tokyo">🗼 Tokyo</button>
-                    <button class="selector-btn" data-env="maps">🗺️ Maps</button>
+                    <button class="selector-btn" data-env="london">CITY</button>
+                    <button class="selector-btn" data-env="tokyo">TOKYO</button>
+                    <button class="selector-btn" data-env="ocean">UNDERWATER</button>
+                    <button class="selector-btn active" data-env="maps">MAPS</button>
                 </div>
                 <div id="maps-city-selector">
                     <span class="selector-label">CITY</span>
-                    <button class="selector-btn" data-city="nyc">🗽 New York</button>
-                    <button class="selector-btn" data-city="sf">🌉 San Francisco</button>
-                    <button class="selector-btn" data-city="dubai">🏜️ Dubai</button>
-                    <button class="selector-btn" data-city="london3d">🇬🇧 London</button>
+                    <button class="selector-btn" data-city="nyc">NEW YORK</button>
+                    <button class="selector-btn" data-city="sf">SAN FRANCISCO</button>
+                    <button class="selector-btn" data-city="london3d">LONDON</button>
                 </div>
             </div>
             
@@ -858,11 +474,11 @@
 
             <!-- Compass Heading Strip -->
             <div id="compass-container">
-                <canvas id="compass-canvas" width="240" height="28"></canvas>
+                <canvas id="compass-canvas" width="320" height="36"></canvas>
             </div>
             
             <!-- Start Button -->
-            <button id="start-btn">🎤 Start Voice Control</button>
+            <button id="start-btn">START VOICE CONTROL</button>
             
             <!-- HUD — compact bottom-left -->
             <div id="hud">
@@ -926,6 +542,9 @@
                 </div>
             </div>
             
+            <!-- Transcript Panel -->
+            <div id="transcript-panel"></div>
+
             <!-- Voice Overlay -->
             <div id="voice-overlay" style="display: none;">
                 <div id="voice-suggestions"></div>
@@ -938,7 +557,14 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        // ============= ES MODULE IMPORTS =============
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { GLTFLoader as GLTFLoaderModule } from 'three/addons/loaders/GLTFLoader.js';
+        import { DRACOLoader as DRACOLoaderModule } from 'three/addons/loaders/DRACOLoader.js';
+        import { RGBELoader as RGBELoaderModule } from 'three/addons/loaders/RGBELoader.js';
+
         // ============= CONFIGURATION =============
         const GEMINI_API_KEY = 'AIzaSyDaChUoaX7l6-yeUVrS31StPbFGDPZq928';
         const MAPS_API_KEY = 'AIzaSyBflzJwR_fITxCfU909B7Kmoo06EWGSqW8'; // Google Maps JavaScript API key
@@ -996,12 +622,12 @@
         
         // Environment configurations with HDRI paths
         const ENVIRONMENTS = {
-            london: { name: 'London City', weather: ['clear', 'cloudy'], hdri: 'hdri/urban.hdr', glb: 'environments/london-city.glb' },
+            london: { name: 'City', weather: ['clear', 'cloudy'], hdri: 'hdri/urban.hdr', glb: 'environments/london-city.glb' },
             warehouse: { name: 'Warehouse', weather: ['clear', 'cloudy'], hdri: 'hdri/warehouse.hdr' },
             city: { name: 'Urban Sky', weather: ['clear', 'rain'], hdri: 'hdri/urban.hdr' },
             forest: { name: 'Forest', weather: ['clear', 'cloudy', 'rain'], hdri: 'hdri/forest.hdr' },
             desert: { name: 'Industrial', weather: ['clear', 'sandstorm'], hdri: 'hdri/industrial.hdr' },
-            ocean: { name: 'Coastal', weather: ['clear', 'storm'], hasUnderwater: true, hdri: 'hdri/coastal.hdr' },
+            ocean: { name: 'Underwater', weather: ['clear', 'storm'], hasUnderwater: true, hdri: 'hdri/coastal.hdr' },
             tokyo: { name: 'Tokyo City (GLB)', weather: ['clear', 'rain'], hdri: 'hdri/urban.hdr' },
             maps: { name: 'Google Maps 3D', weather: ['clear'], hdri: null }
         };
@@ -1010,13 +636,16 @@
         const MAP_CITIES = {
             nyc: { name: 'New York', lat: 40.7484, lng: -73.9857, zoom: 17, tilt: 60, heading: 30 },
             sf: { name: 'San Francisco', lat: 37.7749, lng: -122.4194, zoom: 17, tilt: 60, heading: 0 },
-            dubai: { name: 'Dubai', lat: 25.1972, lng: 55.2744, zoom: 17, tilt: 60, heading: 45 },
             london3d: { name: 'London', lat: 51.5074, lng: -0.1278, zoom: 17, tilt: 60, heading: 0 }
         };
         
         // HDRI loader instance
         let hdriLoader;
         
+        // ============= DRACO DECODER =============
+        const dracoLoader = new DRACOLoaderModule();
+        dracoLoader.setDecoderPath('https://unpkg.com/three@0.170.0/examples/jsm/libs/draco/');
+
         // ============= STATE =============
         let scene, camera, renderer, controls;
         const mobileInput = { moveX: 0, moveY: 0, lookX: 0, lookY: 0, up: false, down: false };
@@ -1056,6 +685,20 @@
         let mapsDroneScene = null;
         let mapsDroneModel = null;
 
+
+        // Autopilot / waypoint navigation state
+        let autopilot = {
+            active: false,
+            waypoints: [],       // [{lat, lng, altitude, name}]
+            currentIndex: 0,
+            speed: 'normal',     // slow/normal/fast
+            loop: false,
+            targetAlt: 150,      // meters — above most buildings
+            minCruiseAlt: 120,   // minimum altitude during navigation
+            arrivalThreshold: 0.0003, // ~30m in degrees
+            altThreshold: 5      // meters
+        };
+
         // Audio analyser for waveform
         let audioAnalyser = null;
         let analyserData = null;
@@ -1075,6 +718,7 @@
 
         // Environment bounds (set by GLB loader or procedural envs)
         let envBounds = null; // { min: Vector3, max: Vector3 }
+        let envGroundY = 0; // Ground level Y for altitude calculation
 
         // Chase camera state
         let chaseCamDistance = 12;
@@ -1104,15 +748,15 @@
             camera.position.set(30, 25, 30);
             
             // FPV Camera — physically accurate (90 deg FOV, matches drone cam)
-            fpvCamera = new THREE.PerspectiveCamera(90, 280 / 180, 0.1, 2000);
+            fpvCamera = new THREE.PerspectiveCamera(130, 280 / 180, 0.1, 2000);
 
             // FPV PiP renderer — renders into the PiP canvas
-            fpvRenderer = new THREE.WebGLRenderer({ antialias: false, alpha: false });
+            fpvRenderer = new THREE.WebGLRenderer({ antialias: false, alpha: false, preserveDrawingBuffer: true });
             fpvRenderer.setSize(280, 180);
             fpvRenderer.setPixelRatio(1); // Keep it light
             fpvRenderer.toneMapping = THREE.ACESFilmicToneMapping;
             fpvRenderer.toneMappingExposure = 0.8;
-            fpvRenderer.outputEncoding = THREE.sRGBEncoding;
+            fpvRenderer.outputColorSpace = THREE.SRGBColorSpace;
             const pipContainer = document.getElementById('fpv-pip');
             if (pipContainer) {
                 // Replace the hidden canvas with the renderer's canvas
@@ -1133,15 +777,15 @@
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
             renderer.toneMappingExposure = 0.8;
-            renderer.outputEncoding = THREE.sRGBEncoding;
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
             document.getElementById('scene-container').appendChild(renderer.domElement);
             
             // Initialize HDRI loader
-            hdriLoader = new THREE.RGBELoader();
+            hdriLoader = new RGBELoaderModule();
             hdriLoader.setDataType(THREE.HalfFloatType);
             
             // Controls — chase camera handles position; OrbitControls only for target smoothing
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls = new OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.1;
             controls.enableRotate = false; // Chase cam handles rotation
@@ -1152,11 +796,19 @@
             createRobot(robotType);
             
             // Load environment
-            loadEnvironment('london');
+            loadEnvironment('maps');
             
             // Event listeners
             window.addEventListener('resize', onWindowResize);
-            document.addEventListener('keydown', (e) => keys[e.key.toLowerCase()] = true);
+            document.addEventListener('keydown', (e) => {
+                keys[e.key.toLowerCase()] = true;
+                // Manual input cancels autopilot
+                if (autopilot.active && ['w','s','a','d','q','e'].includes(e.key.toLowerCase())) {
+                    autopilot.active = false;
+                    ROBOTS[robotType].physics.thrust = 0.06;
+                    showToast('Manual override — autopilot off');
+                }
+            });
             document.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
 
             // Scroll wheel adjusts chase cam distance
@@ -1330,10 +982,16 @@
                 droneAnimMixer = null;
             }
 
+            // Capture current robot group so async callback adds to the right one
+            const targetRobot = robot;
+
             // Load animated drone GLB model
-            const loader = new THREE.GLTFLoader();
+            const loader = new GLTFLoaderModule();
+            loader.setDRACOLoader(dracoLoader);
 
             loader.load('drone.glb', (gltf) => {
+                // Bail if robot was switched before GLB loaded
+                if (robot !== targetRobot) return;
                 const model = gltf.scene;
 
                 // The GLB bounding box is ~0.25 x 0.07 x 0.2 units
@@ -1345,14 +1003,13 @@
                 const box = new THREE.Box3().setFromObject(model);
                 const center = box.getCenter(new THREE.Vector3());
                 model.position.sub(center);
-                model.position.y = 0; // sit on origin
-                model.rotation.y = Math.PI; // flip to face forward
+                model.position.y = 0;
+                model.rotation.y = Math.PI; // Flip — gimbal/camera faces -Z (forward)
 
                 model.traverse(child => {
                     if (child.isMesh) {
                         child.castShadow = true;
                         child.receiveShadow = true;
-                        // Ensure materials render with environment lighting
                         if (child.material) {
                             if (scene.environment) child.material.envMap = scene.environment;
                             child.material.needsUpdate = true;
@@ -1376,14 +1033,14 @@
                 const dx = droneSize.x / 2;   // half wingspan
                 const dy = droneSize.y;        // height
                 const dz = droneSize.z / 2;    // half length
-                const lightScale = Math.max(dx * 0.06, 0.03);
+                const lightScale = Math.max(dx * 0.015, 0.008);
 
-                // Green starboard (right wing tip)
+                // Green starboard (right) — tight to body
                 const greenNav = new THREE.Mesh(
                     new THREE.SphereGeometry(lightScale),
                     new THREE.MeshBasicMaterial({ color: 0x00ff00 })
                 );
-                greenNav.position.set(dx * 0.9, dy * 0.3, 0);
+                greenNav.position.set(dx * 0.35, dy * 0.15, 0);
                 greenNav.userData.isNavLight = true;
                 greenNav.userData.navColor = 0x00ff00;
                 robot.add(greenNav);
@@ -1393,7 +1050,7 @@
                     new THREE.SphereGeometry(lightScale),
                     new THREE.MeshBasicMaterial({ color: 0xff0000 })
                 );
-                redNav.position.set(-dx * 0.9, dy * 0.3, 0);
+                redNav.position.set(-dx * 0.35, dy * 0.15, 0);
                 redNav.userData.isNavLight = true;
                 redNav.userData.navColor = 0xff0000;
                 robot.add(redNav);
@@ -1403,7 +1060,7 @@
                     new THREE.SphereGeometry(lightScale * 0.8),
                     new THREE.MeshBasicMaterial({ color: 0xffffff })
                 );
-                navLightStrobe.position.set(0, dy * 0.8, 0);
+                navLightStrobe.position.set(0, dy * 0.35, 0);
                 navLightStrobe.userData.isStrobe = true;
                 robot.add(navLightStrobe);
 
@@ -1412,7 +1069,7 @@
                     new THREE.SphereGeometry(lightScale * 0.8),
                     new THREE.MeshBasicMaterial({ color: 0xffffff })
                 );
-                tailNav.position.set(0, dy * 0.2, dz * 0.9);
+                tailNav.position.set(0, dy * 0.1, dz * 0.3);
                 tailNav.userData.isNavLight = true;
                 tailNav.userData.navColor = 0xffffff;
                 robot.add(tailNav);
@@ -1448,99 +1105,101 @@
         }
         
         function createAUV() {
-            // Submarine body - torpedo shape
-            // CapsuleGeometry not in v0.137 — use cylinder with hemisphere ends
+            // Submarine body - torpedo shape along Z axis (forward = -Z)
             const bodyGeom = new THREE.CylinderGeometry(0.5, 0.5, 2, 16, 1, false);
             const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, metalness: 0.6, roughness: 0.3 });
             const body = new THREE.Mesh(bodyGeom, bodyMat);
-            body.rotation.z = Math.PI / 2;
+            body.rotation.x = Math.PI / 2; // Lay along Z axis
             robot.add(body);
-            
-            // Propeller housing
+
+            // Propeller housing — at back (+Z)
             const propHouse = new THREE.Mesh(
                 new THREE.CylinderGeometry(0.3, 0.4, 0.4, 8),
                 new THREE.MeshStandardMaterial({ color: 0x333333 })
             );
-            propHouse.rotation.z = Math.PI / 2;
-            propHouse.position.set(-1.3, 0, 0);
+            propHouse.rotation.x = Math.PI / 2;
+            propHouse.position.set(0, 0, 1.3);
             robot.add(propHouse);
-            
-            // Propeller
-            const propGeom = new THREE.BoxGeometry(0.05, 0.6, 0.15);
+
+            // Propeller — at back
+            const propGeom = new THREE.BoxGeometry(0.6, 0.05, 0.15);
             const propMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
             for (let i = 0; i < 3; i++) {
                 const blade = new THREE.Mesh(propGeom, propMat);
-                blade.position.set(-1.5, 0, 0);
-                blade.rotation.x = (i / 3) * Math.PI * 2;
+                blade.position.set(0, 0, 1.5);
+                blade.rotation.z = (i / 3) * Math.PI * 2;
                 blade.userData.isPropeller = true;
                 robot.add(blade);
             }
-            
-            // Fins
-            const finGeom = new THREE.BoxGeometry(0.3, 0.02, 0.5);
+
+            // Fins — at back along Z
+            const finGeom = new THREE.BoxGeometry(0.5, 0.02, 0.3);
             const finMat = new THREE.MeshStandardMaterial({ color: 0xff6600 });
-            const positions = [[0, 0.5, 0], [0, -0.5, 0], [0.5, 0, 0], [-0.5, 0, 0]];
-            positions.forEach((pos, i) => {
+            [[0, 0.5, 0.8], [0, -0.5, 0.8]].forEach(pos => {
                 const fin = new THREE.Mesh(finGeom, finMat);
-                fin.position.set(pos[0] - 0.8, pos[1], pos[2]);
-                if (i >= 2) fin.rotation.z = Math.PI / 2;
+                fin.position.set(...pos);
                 robot.add(fin);
             });
-            
-            // Lights
+            [[0.5, 0, 0.8], [-0.5, 0, 0.8]].forEach(pos => {
+                const fin = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.5, 0.3), finMat);
+                fin.position.set(...pos);
+                robot.add(fin);
+            });
+
+            // Lights — at front (-Z)
             const light1 = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0x00ffff }));
-            light1.position.set(1.2, 0.2, 0.2);
+            light1.position.set(0.2, 0.2, -1.2);
             robot.add(light1);
             const light2 = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0x00ffff }));
-            light2.position.set(1.2, 0.2, -0.2);
+            light2.position.set(-0.2, 0.2, -1.2);
             robot.add(light2);
-            
-            // Camera
+
+            // Camera — at front
             const camMount = new THREE.Mesh(new THREE.SphereGeometry(0.15), new THREE.MeshStandardMaterial({ color: 0x222222 }));
-            camMount.position.set(1.3, 0, 0);
+            camMount.position.set(0, 0, -1.3);
             camMount.userData.isCameraMount = true;
             robot.add(camMount);
         }
         
         function createRover() {
-            // Body
-            const bodyGeom = new THREE.BoxGeometry(2, 0.6, 1.2);
+            // Body — long axis along Z (forward = -Z in Three.js)
+            const bodyGeom = new THREE.BoxGeometry(1.2, 0.6, 2);
             const bodyMat = new THREE.MeshStandardMaterial({ color: 0x3366cc, metalness: 0.5, roughness: 0.4 });
             const body = new THREE.Mesh(bodyGeom, bodyMat);
             body.position.y = 0.3;
             robot.add(body);
-            
-            // Wheels
+
+            // Wheels — positioned along Z axis (front/back)
             const wheelGeom = new THREE.CylinderGeometry(0.3, 0.3, 0.2, 16);
             const wheelMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
             const wheelPositions = [[0.7, 0, 0.7], [-0.7, 0, 0.7], [0.7, 0, -0.7], [-0.7, 0, -0.7]];
             wheelPositions.forEach(pos => {
                 const wheel = new THREE.Mesh(wheelGeom, wheelMat);
                 wheel.position.set(...pos);
-                wheel.rotation.x = Math.PI / 2;
+                wheel.rotation.z = Math.PI / 2;
                 wheel.userData.isWheel = true;
                 robot.add(wheel);
             });
-            
-            // Camera mast
+
+            // Camera mast — at front of rover (-Z)
             const mastGeom = new THREE.CylinderGeometry(0.05, 0.05, 0.5);
             const mastMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
             const mast = new THREE.Mesh(mastGeom, mastMat);
-            mast.position.set(0.5, 0.85, 0);
+            mast.position.set(0, 0.85, -0.7);
             robot.add(mast);
-            
+
             // Camera head
             const camHead = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.15), new THREE.MeshStandardMaterial({ color: 0x111111 }));
-            camHead.position.set(0.5, 1.15, 0);
+            camHead.position.set(0, 1.15, -0.7);
             camHead.userData.isCameraMount = true;
             robot.add(camHead);
-            
-            // Antenna
+
+            // Antenna — at back of rover (+Z)
             const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.4), new THREE.MeshStandardMaterial({ color: 0x888888 }));
-            antenna.position.set(-0.8, 0.9, 0);
+            antenna.position.set(0, 0.9, 0.8);
             robot.add(antenna);
             const antennaTip = new THREE.Mesh(new THREE.SphereGeometry(0.04), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
-            antennaTip.position.set(-0.8, 1.15, 0);
+            antennaTip.position.set(0, 1.15, 0.8);
             robot.add(antennaTip);
         }
         
@@ -1686,7 +1345,8 @@
         // Load GLB environment (World Labs exports)
         function createGLBEnv(glbPath) {
             // Load GLB model
-            const loader = new THREE.GLTFLoader();
+            const loader = new GLTFLoaderModule();
+            loader.setDRACOLoader(dracoLoader);
             loader.load(glbPath, (gltf) => {
                 const model = gltf.scene;
 
@@ -1804,6 +1464,9 @@
                     console.log('No ray hits, using fallback ground Y:', groundY.toFixed(1));
                 }
 
+                // Store ground level for altitude display
+                envGroundY = groundY;
+
                 // Place drone just above the detected ground, at the center of the model
                 const startHeight = groundY + 3;
                 robotState.position.set(0, startHeight, 0);
@@ -1850,12 +1513,15 @@
         function loadEnvironment(envName) {
             clearEnvironment();
             collidableMeshes = []; // Reset collidables
+            envGroundY = 0; // Reset ground level
             currentEnvironment = envName;
 
             // Hide/show Maps container
             if (envName === 'maps') {
                 document.getElementById('maps-city-selector').classList.add('visible');
                 createMapsEnv(currentMapCity);
+                // Start screen share for Gemini vision if voice is active
+                if (isConnected && !screenStream) startScreenShare();
             } else {
                 hideMapsEnv();
                 document.getElementById('maps-city-selector').classList.remove('visible');
@@ -1976,14 +1642,71 @@
             const helipadGeom = new THREE.CylinderGeometry(8, 8, 0.2, 32);
             const helipad = new THREE.Mesh(helipadGeom, new THREE.MeshStandardMaterial({ color: 0x333333 }));
             helipad.position.set(0, 0.1, 30);
-            scene.add(helipad);
-            environmentObjects.push(helipad);
-            
+            scene.add(helipad); environmentObjects.push(helipad);
             const hRing = new THREE.Mesh(new THREE.RingGeometry(5, 6, 32), new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide }));
             hRing.rotation.x = -Math.PI / 2;
             hRing.position.set(0, 0.25, 30);
-            scene.add(hRing);
-            environmentObjects.push(hRing);
+            scene.add(hRing); environmentObjects.push(hRing);
+
+            // Crane
+            const craneMat = new THREE.MeshStandardMaterial({ color: 0xdd6600, roughness: 0.5 });
+            const craneBase = new THREE.Mesh(new THREE.BoxGeometry(3, 0.5, 3), craneMat);
+            craneBase.position.set(60, 0.25, 30);
+            scene.add(craneBase); environmentObjects.push(craneBase);
+            const craneTower = new THREE.Mesh(new THREE.BoxGeometry(1.5, 25, 1.5), craneMat);
+            craneTower.position.set(60, 12.5, 30);
+            scene.add(craneTower); environmentObjects.push(craneTower);
+            const craneArm = new THREE.Mesh(new THREE.BoxGeometry(20, 1, 1), craneMat);
+            craneArm.position.set(70, 25, 30);
+            scene.add(craneArm); environmentObjects.push(craneArm);
+
+            // Forklift (simple shape)
+            const forkMat = new THREE.MeshStandardMaterial({ color: 0xccaa00 });
+            const forkBody = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 2.5), forkMat);
+            forkBody.position.set(15, 0.75, 15);
+            scene.add(forkBody); environmentObjects.push(forkBody);
+            const forkMast = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.5, 0.2), forkMat);
+            forkMast.position.set(15, 2, 13.8);
+            scene.add(forkMast); environmentObjects.push(forkMast);
+
+            // Pallets scattered around
+            const palletMat = new THREE.MeshStandardMaterial({ color: 0x8B6914, roughness: 1 });
+            for (let i = 0; i < 12; i++) {
+                const pallet = new THREE.Mesh(new THREE.BoxGeometry(2, 0.2, 2), palletMat);
+                pallet.position.set((Math.random() - 0.5) * 80, 0.1, (Math.random() - 0.5) * 60);
+                scene.add(pallet); environmentObjects.push(pallet);
+                // Some have cargo boxes on top
+                if (Math.random() > 0.4) {
+                    const cargo = new THREE.Mesh(
+                        new THREE.BoxGeometry(1.5, 1 + Math.random(), 1.5),
+                        new THREE.MeshStandardMaterial({ color: 0x886644, roughness: 0.8 })
+                    );
+                    cargo.position.copy(pallet.position);
+                    cargo.position.y += 0.7;
+                    scene.add(cargo); environmentObjects.push(cargo);
+                }
+            }
+
+            // Barrier cones
+            for (let i = 0; i < 8; i++) {
+                const cone = new THREE.Mesh(
+                    new THREE.ConeGeometry(0.3, 0.8, 8),
+                    new THREE.MeshStandardMaterial({ color: 0xff6600 })
+                );
+                cone.position.set(-10 + i * 3, 0.4, 20);
+                scene.add(cone); environmentObjects.push(cone);
+            }
+
+            // Fuel tanks
+            for (let i = 0; i < 3; i++) {
+                const tank = new THREE.Mesh(
+                    new THREE.CylinderGeometry(2, 2, 5, 16),
+                    new THREE.MeshStandardMaterial({ color: 0x666666, metalness: 0.7, roughness: 0.3 })
+                );
+                tank.position.set(-70, 2.5, -20 + i * 8);
+                tank.rotation.x = Math.PI / 2;
+                scene.add(tank); environmentObjects.push(tank);
+            }
         }
         
         function createCityEnv() {
@@ -2051,13 +1774,69 @@
                 collidableMeshes.push(building);
             }
             
-            // Street lights
+            // Street lights with poles
             for (let i = 0; i < 20; i++) {
                 const light = new THREE.PointLight(0xffaa44, 1, 20);
                 const angle = (i / 20) * Math.PI * 2;
-                light.position.set(Math.cos(angle) * 25, 8, Math.sin(angle) * 25);
-                scene.add(light);
-                environmentObjects.push(light);
+                const lx = Math.cos(angle) * 25, lz = Math.sin(angle) * 25;
+                light.position.set(lx, 8, lz);
+                scene.add(light); environmentObjects.push(light);
+                const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.15, 8, 6),
+                    new THREE.MeshStandardMaterial({ color: 0x333333 }));
+                pole.position.set(lx, 4, lz);
+                scene.add(pole); environmentObjects.push(pole);
+            }
+
+            // Roads — cross pattern
+            const roadMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 1 });
+            const road1 = new THREE.Mesh(new THREE.PlaneGeometry(12, 500), roadMat);
+            road1.rotation.x = -Math.PI / 2; road1.position.y = 0.02;
+            scene.add(road1); environmentObjects.push(road1);
+            const road2 = new THREE.Mesh(new THREE.PlaneGeometry(500, 12), roadMat);
+            road2.rotation.x = -Math.PI / 2; road2.position.y = 0.02;
+            scene.add(road2); environmentObjects.push(road2);
+
+            // Road lane markings
+            const lineMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+            for (let i = -240; i < 240; i += 8) {
+                const dash = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 4), lineMat);
+                dash.rotation.x = -Math.PI / 2; dash.position.set(0, 0.03, i);
+                scene.add(dash); environmentObjects.push(dash);
+            }
+
+            // Parked cars
+            const carColors = [0xcc0000, 0x0044cc, 0x222222, 0xffffff, 0x888888];
+            for (let i = 0; i < 15; i++) {
+                const car = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 4),
+                    new THREE.MeshStandardMaterial({ color: carColors[i % carColors.length], metalness: 0.6 }));
+                const side = Math.random() > 0.5 ? 8 : -8;
+                car.position.set(side, 0.5, -60 + i * 9);
+                scene.add(car); environmentObjects.push(car);
+            }
+
+            // Traffic lights
+            for (let i = 0; i < 4; i++) {
+                const tlPole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 5, 6),
+                    new THREE.MeshStandardMaterial({ color: 0x333333 }));
+                const tx = (i < 2 ? 7 : -7), tz = (i % 2 === 0 ? 7 : -7);
+                tlPole.position.set(tx, 2.5, tz);
+                scene.add(tlPole); environmentObjects.push(tlPole);
+                const tlBox = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.2, 0.4),
+                    new THREE.MeshStandardMaterial({ color: 0x222222 }));
+                tlBox.position.set(tx, 5.2, tz);
+                scene.add(tlBox); environmentObjects.push(tlBox);
+                const tlLight = new THREE.Mesh(new THREE.SphereGeometry(0.12),
+                    new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0x00ff00 : 0xff0000 }));
+                tlLight.position.set(tx, 5.5, tz - 0.2);
+                scene.add(tlLight); environmentObjects.push(tlLight);
+            }
+
+            // Park bench
+            const benchMat = new THREE.MeshStandardMaterial({ color: 0x4a3728 });
+            for (let i = 0; i < 4; i++) {
+                const bench = new THREE.Mesh(new THREE.BoxGeometry(2, 0.1, 0.6), benchMat);
+                bench.position.set(18 + i * 5, 0.5, 18);
+                scene.add(bench); environmentObjects.push(bench);
             }
         }
         
@@ -2162,88 +1941,358 @@
         }
         
         function createOceanEnv() {
-            // HDRI provides background
-            scene.fog = new THREE.FogExp2(0x006994, 0.003);
-            
-            const ambient = new THREE.AmbientLight(0x88aacc, 0.6);
-            scene.add(ambient);
-            environmentObjects.push(ambient);
-            
-            const sun = new THREE.DirectionalLight(0xffffee, 1);
-            sun.position.set(40, 80, 40);
+            // Underwater fog — denser, blue-green
+            scene.fog = new THREE.FogExp2(0x004466, 0.006);
+
+            // Dim ambient — underwater light attenuation
+            const ambient = new THREE.AmbientLight(0x336688, 0.5);
+            scene.add(ambient); environmentObjects.push(ambient);
+
+            // God rays — directional light from above, filtered through water
+            const sun = new THREE.DirectionalLight(0x88ccee, 0.7);
+            sun.position.set(20, 60, 10);
             sun.castShadow = true;
-            scene.add(sun);
-            environmentObjects.push(sun);
-            
-            // Ocean surface — enhanced water shader (Phase 3A)
-            const oceanGeom = new THREE.PlaneGeometry(500, 500, 100, 100);
+            sun.shadow.mapSize.set(1024, 1024);
+            scene.add(sun); environmentObjects.push(sun);
+
+            // Secondary fill light for depth
+            const fill = new THREE.DirectionalLight(0x224466, 0.3);
+            fill.position.set(-30, 20, -20);
+            scene.add(fill); environmentObjects.push(fill);
+
+            // Ocean surface
+            const oceanGeom = new THREE.PlaneGeometry(500, 500, 120, 120);
             const oceanMat = new THREE.MeshPhysicalMaterial({
-                color: 0x006994,
-                roughness: 0.1,
-                metalness: 0.1,
-                transmission: 0.6,
-                thickness: 2.0,
-                transparent: true,
-                opacity: 0.85,
-                envMapIntensity: 1.5
+                color: 0x006994, roughness: 0.05, metalness: 0.1,
+                transmission: 0.7, thickness: 3.0,
+                transparent: true, opacity: 0.8, envMapIntensity: 2.0
             });
             const ocean = new THREE.Mesh(oceanGeom, oceanMat);
             ocean.rotation.x = -Math.PI / 2;
             ocean.userData.isOcean = true;
-            scene.add(ocean);
-            environmentObjects.push(ocean);
-            
-            // Seabed
-            const seabedGeom = new THREE.PlaneGeometry(500, 500, 30, 30);
-            const seabedPos = seabedGeom.attributes.position.array;
-            for (let i = 0; i < seabedPos.length; i += 3) {
-                seabedPos[i + 2] = Math.random() * 2;
+            scene.add(ocean); environmentObjects.push(ocean);
+
+            // Seabed with terrain variation
+            const seabedGeom = new THREE.PlaneGeometry(500, 500, 60, 60);
+            const sbPos = seabedGeom.attributes.position.array;
+            for (let i = 0; i < sbPos.length; i += 3) {
+                const x = sbPos[i], y = sbPos[i + 1];
+                sbPos[i + 2] = Math.sin(x * 0.02) * Math.cos(y * 0.03) * 3 + Math.random() * 1.5;
             }
             seabedGeom.computeVertexNormals();
-            const seabed = new THREE.Mesh(seabedGeom, new THREE.MeshStandardMaterial({ color: 0x3d5c5c }));
+            const seabed = new THREE.Mesh(seabedGeom, new THREE.MeshStandardMaterial({
+                color: 0x2a4a4a, roughness: 0.9, metalness: 0.0
+            }));
             seabed.rotation.x = -Math.PI / 2;
             seabed.position.y = -30;
-            scene.add(seabed);
-            environmentObjects.push(seabed);
-            
+            scene.add(seabed); environmentObjects.push(seabed);
+
             // Oil platform
-            const platform = new THREE.Mesh(new THREE.BoxGeometry(30, 2, 30), new THREE.MeshStandardMaterial({ color: 0x444444 }));
+            const platMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.6, metalness: 0.8 });
+            const platform = new THREE.Mesh(new THREE.BoxGeometry(30, 2, 30), platMat);
             platform.position.set(0, 15, 0);
-            scene.add(platform);
-            environmentObjects.push(platform);
-            
-            // Platform legs
+            scene.add(platform); environmentObjects.push(platform);
             for (let x = -1; x <= 1; x += 2) {
                 for (let z = -1; z <= 1; z += 2) {
-                    const leg = new THREE.Mesh(new THREE.CylinderGeometry(1, 1.5, 50, 8), new THREE.MeshStandardMaterial({ color: 0x444444 }));
+                    const leg = new THREE.Mesh(new THREE.CylinderGeometry(1, 1.5, 50, 8), platMat);
                     leg.position.set(x * 12, -10, z * 12);
-                    scene.add(leg);
-                    environmentObjects.push(leg);
+                    scene.add(leg); environmentObjects.push(leg);
                 }
             }
-            
-            // Derrick tower
-            const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 2, 25, 4), new THREE.MeshStandardMaterial({ color: 0xff6600 }));
+            // Cross-braces on legs
+            for (let z = -1; z <= 1; z += 2) {
+                const brace = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 28, 6), platMat);
+                brace.position.set(0, -5, z * 12);
+                brace.rotation.z = Math.PI / 2;
+                scene.add(brace); environmentObjects.push(brace);
+            }
+            const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 2, 25, 4),
+                new THREE.MeshStandardMaterial({ color: 0xff6600, roughness: 0.5 }));
             tower.position.set(0, 28.5, 0);
-            scene.add(tower);
-            environmentObjects.push(tower);
-            
-            // Underwater features (coral, fish, etc.)
-            for (let i = 0; i < 30; i++) {
-                const coral = new THREE.Mesh(
-                    new THREE.ConeGeometry(0.5 + Math.random(), 2 + Math.random() * 3, 6),
-                    new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(Math.random() * 0.1, 0.8, 0.5) })
+            scene.add(tower); environmentObjects.push(tower);
+
+            // Coral reef clusters — varied shapes & colors
+            const coralColors = [0xff4466, 0xff8844, 0xee66aa, 0xcc44ff, 0xff6633, 0xffaa22];
+            for (let i = 0; i < 80; i++) {
+                const cx = (Math.random() - 0.5) * 160;
+                const cz = (Math.random() - 0.5) * 160;
+                const type = Math.floor(Math.random() * 3);
+                let geom;
+                if (type === 0) {
+                    // Branching coral (stacked cones)
+                    geom = new THREE.ConeGeometry(0.3 + Math.random() * 0.5, 2 + Math.random() * 4, 5 + Math.floor(Math.random() * 4));
+                } else if (type === 1) {
+                    // Brain coral (sphere)
+                    geom = new THREE.SphereGeometry(0.5 + Math.random() * 1.5, 8, 6);
+                } else {
+                    // Fan coral (thin box)
+                    geom = new THREE.BoxGeometry(0.1, 2 + Math.random() * 3, 1.5 + Math.random() * 2);
+                }
+                const coral = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({
+                    color: coralColors[Math.floor(Math.random() * coralColors.length)],
+                    roughness: 0.7, emissive: coralColors[Math.floor(Math.random() * coralColors.length)],
+                    emissiveIntensity: 0.05
+                }));
+                coral.position.set(cx, -28 + Math.random() * 2, cz);
+                if (type === 2) coral.rotation.y = Math.random() * Math.PI;
+                scene.add(coral); environmentObjects.push(coral);
+            }
+
+            // Kelp forests — tall swaying strands
+            for (let i = 0; i < 40; i++) {
+                const kx = (Math.random() - 0.5) * 150;
+                const kz = (Math.random() - 0.5) * 150;
+                const kelpHeight = 8 + Math.random() * 15;
+                const segments = 6;
+                for (let s = 0; s < segments; s++) {
+                    const seg = new THREE.Mesh(
+                        new THREE.BoxGeometry(0.15, kelpHeight / segments, 0.8 - s * 0.08),
+                        new THREE.MeshStandardMaterial({
+                            color: 0x1a6622, roughness: 0.8,
+                            transparent: true, opacity: 0.85
+                        })
+                    );
+                    seg.position.set(
+                        kx + Math.sin(s * 0.4) * 0.3,
+                        -28 + (s + 0.5) * (kelpHeight / segments),
+                        kz + Math.cos(s * 0.5) * 0.2
+                    );
+                    seg.userData.isKelp = true;
+                    seg.userData.kelpBase = { x: kx, z: kz, seg: s };
+                    scene.add(seg); environmentObjects.push(seg);
+                }
+            }
+
+            // Rocks and boulders on seabed
+            for (let i = 0; i < 25; i++) {
+                const rScale = 1 + Math.random() * 3;
+                const rock = new THREE.Mesh(
+                    new THREE.DodecahedronGeometry(rScale, 1),
+                    new THREE.MeshStandardMaterial({
+                        color: new THREE.Color().setHSL(0.08, 0.15, 0.2 + Math.random() * 0.15),
+                        roughness: 0.95
+                    })
                 );
-                coral.position.set(
+                rock.position.set(
+                    (Math.random() - 0.5) * 180,
+                    -29 + rScale * 0.3,
+                    (Math.random() - 0.5) * 180
+                );
+                rock.rotation.set(Math.random(), Math.random(), Math.random());
+                rock.scale.y = 0.5 + Math.random() * 0.5; // Flatten slightly
+                scene.add(rock); environmentObjects.push(rock);
+            }
+
+            // Shipwreck
+            const wreckMat = new THREE.MeshStandardMaterial({ color: 0x443322, roughness: 0.9, metalness: 0.2 });
+            const hull = new THREE.Mesh(new THREE.BoxGeometry(6, 4, 20), wreckMat);
+            hull.position.set(40, -26, -30);
+            hull.rotation.set(0.1, 0.4, 0.15);
+            scene.add(hull); environmentObjects.push(hull);
+            const deck = new THREE.Mesh(new THREE.BoxGeometry(5, 0.3, 18), wreckMat);
+            deck.position.set(40, -24, -30);
+            deck.rotation.copy(hull.rotation);
+            scene.add(deck); environmentObjects.push(deck);
+            const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 12, 6), wreckMat);
+            mast.position.set(40, -20, -30);
+            mast.rotation.set(0.3, 0, 0.5);
+            scene.add(mast); environmentObjects.push(mast);
+
+            // Underwater pipe / cable on seabed
+            for (let i = 0; i < 20; i++) {
+                const pipe = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.3, 0.3, 10, 8),
+                    new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.6, metalness: 0.7 })
+                );
+                pipe.position.set(-60 + i * 6, -29, 50);
+                pipe.rotation.z = Math.PI / 2;
+                scene.add(pipe); environmentObjects.push(pipe);
+            }
+
+            // Bioluminescent point lights scattered underwater
+            const bioColors = [0x00ffaa, 0x0088ff, 0x44ffcc, 0xaa44ff];
+            for (let i = 0; i < 8; i++) {
+                const light = new THREE.PointLight(
+                    bioColors[i % bioColors.length], 0.4, 30
+                );
+                light.position.set(
                     (Math.random() - 0.5) * 100,
-                    -28 + Math.random() * 2,
+                    -15 - Math.random() * 12,
                     (Math.random() - 0.5) * 100
                 );
-                scene.add(coral);
-                environmentObjects.push(coral);
+                scene.add(light); environmentObjects.push(light);
+                // Small glowing sphere at light source
+                const glow = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.15, 8, 8),
+                    new THREE.MeshBasicMaterial({ color: bioColors[i % bioColors.length] })
+                );
+                glow.position.copy(light.position);
+                glow.userData.isBioGlow = true;
+                scene.add(glow); environmentObjects.push(glow);
+            }
+
+            // Schools of fish (simple geometry clusters)
+            for (let school = 0; school < 5; school++) {
+                const schoolGroup = new THREE.Group();
+                const fishColor = new THREE.Color().setHSL(Math.random() * 0.15 + 0.5, 0.7, 0.5);
+                const fishCount = 8 + Math.floor(Math.random() * 12);
+                for (let f = 0; f < fishCount; f++) {
+                    const fish = new THREE.Mesh(
+                        new THREE.ConeGeometry(0.12, 0.5, 4),
+                        new THREE.MeshStandardMaterial({ color: fishColor, roughness: 0.3, metalness: 0.4 })
+                    );
+                    fish.rotation.x = Math.PI / 2; // Point forward
+                    fish.position.set(
+                        (Math.random() - 0.5) * 6,
+                        (Math.random() - 0.5) * 3,
+                        (Math.random() - 0.5) * 6
+                    );
+                    schoolGroup.add(fish);
+                }
+                schoolGroup.position.set(
+                    (Math.random() - 0.5) * 120,
+                    -8 - Math.random() * 16,
+                    (Math.random() - 0.5) * 120
+                );
+                schoolGroup.userData.isFishSchool = true;
+                schoolGroup.userData.swimPhase = Math.random() * Math.PI * 2;
+                schoolGroup.userData.swimRadius = 5 + Math.random() * 10;
+                schoolGroup.userData.swimSpeed = 0.003 + Math.random() * 0.005;
+                schoolGroup.userData.basePos = schoolGroup.position.clone();
+                scene.add(schoolGroup); environmentObjects.push(schoolGroup);
+            }
+
+            // Jellyfish (translucent domes)
+            for (let i = 0; i < 6; i++) {
+                const jelly = new THREE.Group();
+                const dome = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.5 + Math.random() * 0.5, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+                    new THREE.MeshPhysicalMaterial({
+                        color: new THREE.Color().setHSL(Math.random() * 0.3 + 0.7, 0.6, 0.6),
+                        transparent: true, opacity: 0.4, roughness: 0.1,
+                        transmission: 0.5, side: THREE.DoubleSide
+                    })
+                );
+                jelly.add(dome);
+                // Tentacles
+                for (let t = 0; t < 5; t++) {
+                    const tentacle = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.02, 0.01, 1.5 + Math.random(), 4),
+                        new THREE.MeshBasicMaterial({
+                            color: dome.material.color, transparent: true, opacity: 0.3
+                        })
+                    );
+                    tentacle.position.set((Math.random() - 0.5) * 0.4, -1, (Math.random() - 0.5) * 0.4);
+                    jelly.add(tentacle);
+                }
+                jelly.position.set(
+                    (Math.random() - 0.5) * 80,
+                    -5 - Math.random() * 18,
+                    (Math.random() - 0.5) * 80
+                );
+                jelly.userData.isJellyfish = true;
+                jelly.userData.bobPhase = Math.random() * Math.PI * 2;
+                scene.add(jelly); environmentObjects.push(jelly);
             }
         }
         
+        // ============= UNDERWATER GLB ENVIRONMENT =============
+        function createUnderwaterGLBEnv() {
+            // Underwater atmosphere
+            scene.fog = new THREE.FogExp2(0x003355, 0.008);
+
+            // Dim blue-green underwater lighting
+            const ambient = new THREE.AmbientLight(0x4488aa, 0.4);
+            scene.add(ambient);
+            environmentObjects.push(ambient);
+
+            // Caustic-like directional light from above
+            const sunBeam = new THREE.DirectionalLight(0x66ccff, 0.6);
+            sunBeam.position.set(20, 80, 20);
+            sunBeam.castShadow = true;
+            scene.add(sunBeam);
+            environmentObjects.push(sunBeam);
+
+            // Subtle point lights for bioluminescence feel
+            const bioLight1 = new THREE.PointLight(0x00ffaa, 0.3, 50);
+            bioLight1.position.set(10, 5, -10);
+            scene.add(bioLight1);
+            environmentObjects.push(bioLight1);
+            const bioLight2 = new THREE.PointLight(0x0088ff, 0.3, 50);
+            bioLight2.position.set(-15, 3, 15);
+            scene.add(bioLight2);
+            environmentObjects.push(bioLight2);
+
+            // Load underwater GLB
+            const loader = new GLTFLoaderModule();
+            loader.setDRACOLoader(dracoLoader);
+            loader.load('environments/underwater.glb', (gltf) => {
+                const model = gltf.scene;
+
+                // Get bounds
+                const box = new THREE.Box3().setFromObject(model);
+                const center = box.getCenter(new THREE.Vector3());
+                const size = box.getSize(new THREE.Vector3());
+                const maxDim = Math.max(size.x, size.y, size.z);
+
+                // Scale: Minecraft worlds are large — normalize to ~200 units
+                const targetSize = 200;
+                const envScale = targetSize / maxDim;
+                model.scale.setScalar(envScale);
+
+                // Recalculate bounds after scaling
+                const scaledBox = new THREE.Box3().setFromObject(model);
+                const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
+                const scaledSize = scaledBox.getSize(new THREE.Vector3());
+
+                // Center horizontally, place AUV at mid-height
+                model.position.set(-scaledCenter.x, -scaledBox.min.y - scaledSize.y * 0.3, -scaledCenter.z);
+                model.updateMatrixWorld(true);
+
+                scene.add(model);
+                environmentObjects.push(model);
+
+                // Add to collidable meshes
+                model.traverse(child => {
+                    if (child.isMesh) {
+                        child.receiveShadow = true;
+                        collidableMeshes.push(child);
+                        // Apply underwater tint to materials
+                        if (child.material) {
+                            child.material.envMapIntensity = 0.3;
+                        }
+                    }
+                });
+
+                // Set environment bounds
+                const finalBox = new THREE.Box3().setFromObject(model);
+                envBounds = finalBox.clone();
+                envBounds.expandByScalar(20);
+
+                // Position AUV inside the scene
+                const spawnY = (finalBox.min.y + finalBox.max.y) * 0.5;
+                if (robot) {
+                    robot.position.set(0, spawnY, 0);
+                    robotState.position.set(0, spawnY, 0);
+                }
+
+                // Chase cam for this scale
+                chaseCamDistance = 8 * envScale;
+                chaseCamHeight = 3 * envScale;
+
+                showToast('Underwater environment loaded');
+                console.log('Underwater GLB: scale', envScale.toFixed(3), 'size', scaledSize.x.toFixed(0), 'x', scaledSize.y.toFixed(0), 'x', scaledSize.z.toFixed(0));
+            }, undefined, (error) => {
+                console.error('Failed to load underwater GLB:', error);
+                showToast('Failed to load underwater — using fallback');
+                createOceanEnv(); // Fallback to procedural
+            });
+
+            // Enable underwater overlay
+            isUnderwater = true;
+            document.getElementById('underwater-overlay').classList.add('active');
+        }
+
         // ============= TOKYO GLB ENVIRONMENT =============
         function createTokyoEnv() {
             // HDRI provides background
@@ -2269,7 +2318,8 @@
             environmentObjects.push(ground);
             
             // Load Tokyo GLB
-            const loader = new THREE.GLTFLoader();
+            const loader = new GLTFLoaderModule();
+            loader.setDRACOLoader(dracoLoader);
             loader.load(
                 'environments/tokyo.glb',
                 function(gltf) {
@@ -2420,17 +2470,6 @@
                 else if (lookRight) yawVelocity = -yawSpd;
                 else yawVelocity *= 0.6; // Quick deceleration when no input
 
-                // When yawing without movement input, zero horizontal velocity
-                // to prevent the drone from drifting/orbiting on the map
-                const hasMovementInput = moveForward || moveBack || moveLeft || moveRight || pitchForward || pitchBack;
-                if (!hasMovementInput) {
-                    robotState.velocity.x *= 0.8;
-                    robotState.velocity.z *= 0.8;
-                    // Hard zero below threshold
-                    if (Math.abs(robotState.velocity.x) < 0.01) robotState.velocity.x = 0;
-                    if (Math.abs(robotState.velocity.z) < 0.01) robotState.velocity.z = 0;
-                }
-
                 robot.rotation.y += yawVelocity;
 
                 // Calculate target tilt based on horizontal velocity (in local space)
@@ -2480,8 +2519,11 @@
                 if (lookLeft) robot.rotation.y += rotSpeed * (1 + Math.abs(mobileInput.lookX));
                 if (lookRight) robot.rotation.y -= rotSpeed * (1 + Math.abs(mobileInput.lookX));
             } else {
-                // Ground vehicles - different controls
+                // Ground vehicles — car-like controls (turn only when moving)
                 const gSpeed = thrust;
+                const currentSpeed = robotState.velocity.length();
+                const isMoving = currentSpeed > 0.01;
+
                 if (moveForward) {
                     robotState.velocity.z -= gSpeed * mobileMult * Math.cos(robot.rotation.y);
                     robotState.velocity.x -= gSpeed * mobileMult * Math.sin(robot.rotation.y);
@@ -2490,17 +2532,17 @@
                     robotState.velocity.z += gSpeed * 0.5 * mobileMult * Math.cos(robot.rotation.y);
                     robotState.velocity.x += gSpeed * 0.5 * mobileMult * Math.sin(robot.rotation.y);
                 }
-                if (moveLeft || lookLeft) robot.rotation.y += rotSpeed;
-                if (moveRight || lookRight) robot.rotation.y -= rotSpeed;
-                if (keys[' ']) robotState.velocity.multiplyScalar(0.9); // Brake
+                // Steering — only effective when moving (like a real vehicle)
+                const steerRate = isMoving ? rotSpeed * Math.min(1, currentSpeed * 5) : rotSpeed * 0.3;
+                if (moveLeft || lookLeft) robot.rotation.y += steerRate;
+                if (moveRight || lookRight) robot.rotation.y -= steerRate;
+                if (keys[' ']) robotState.velocity.multiplyScalar(0.85); // Brake
             }
 
             // Physics simulation — drone handles its own drag/gravity above
             if (robotType === 'auv') {
-                // Buoyancy at certain depth
-                if (robot.position.y < -2) {
-                    robotState.velocity.y += physics.buoyancy;
-                }
+                // Neutral buoyancy — AUV holds depth, only damp vertical velocity
+                robotState.velocity.y *= 0.92; // Strong vertical damping = holds depth
                 robotState.velocity.multiplyScalar(physics.drag);
                 if (robotState.velocity.length() > physics.maxSpeed) {
                     robotState.velocity.normalize().multiplyScalar(physics.maxSpeed);
@@ -2531,14 +2573,23 @@
                     if (robotState.velocity.y < 0) robotState.velocity.y = 0;
                 }
             } else if (robotType === 'auv') {
-                // Keep underwater but not too deep
+                // Keep underwater
                 if (robot.position.y > -1) {
                     robot.position.y = -1;
                     robotState.velocity.y = 0;
                 }
-                if (robot.position.y < -25) {
-                    robot.position.y = -25;
+                if (robot.position.y < -28) {
+                    robot.position.y = -28;
                     robotState.velocity.y = 0;
+                }
+                // Keep within ocean bounds (200 unit radius)
+                const dist = Math.sqrt(robot.position.x * robot.position.x + robot.position.z * robot.position.z);
+                if (dist > 200) {
+                    const scale = 200 / dist;
+                    robot.position.x *= scale;
+                    robot.position.z *= scale;
+                    robotState.velocity.x *= -0.3;
+                    robotState.velocity.z *= -0.3;
                 }
             } else {
                 // Ground robots stay on ground
@@ -2594,34 +2645,20 @@
             // Update FPV camera
             updateFPVCamera();
             
-            // Third-person chase camera (always active)
+            // Third-person chase camera (skip in tiles maps mode — handled by updateMapsPosition)
             {
+                camera.up.set(0, 1, 0);
                 const scale = robot.scale.x || 1;
                 const isMaps = currentEnvironment === 'maps';
                 const dist = (isMaps ? 6 : chaseCamDistance) * scale;
                 const height = (isMaps ? 2.5 : chaseCamHeight) * scale;
-
-                let desiredX, desiredZ, desiredY;
-                if (isMaps) {
-                    // Fixed camera offset in maps mode — map rotation handles the world view
-                    // Camera stays at fixed position behind drone (no orbiting on yaw)
-                    desiredX = robot.position.x;
-                    desiredZ = robot.position.z + dist;
-                    desiredY = robot.position.y + height;
-                } else {
-                    // Normal chase cam follows behind drone's yaw
-                    const camYaw = robot.rotation.y;
-                    desiredX = robot.position.x + Math.sin(camYaw) * dist;
-                    desiredZ = robot.position.z + Math.cos(camYaw) * dist;
-                    desiredY = robot.position.y + height;
-                }
-
-                // Smooth follow
+                const camYaw = robot.rotation.y;
+                const desiredX = robot.position.x + Math.sin(camYaw) * dist;
+                const desiredZ = robot.position.z + Math.cos(camYaw) * dist;
+                const desiredY = robot.position.y + height;
                 camera.position.x += (desiredX - camera.position.x) * chaseCamLerp;
                 camera.position.y += (desiredY - camera.position.y) * chaseCamLerp;
                 camera.position.z += (desiredZ - camera.position.z) * chaseCamLerp;
-
-                // Look at drone with slight forward offset
                 const lookTarget = robot.position.clone();
                 lookTarget.y += 1 * scale;
                 controls.target.lerp(lookTarget, 0.12);
@@ -2641,8 +2678,7 @@
         }
         
         function getGroundHeight() {
-            // Simple ground height (could be expanded for terrain)
-            return 0;
+            return envGroundY;
         }
         
         function animateQuadruped() {
@@ -2674,18 +2710,24 @@
         function updateFPVCamera() {
             if (!robot) return;
 
-            // Camera at front-bottom of drone
             const scale = robot.scale.x || 1;
-            const offset = new THREE.Vector3(0, -0.2 * scale, -0.5 * scale);
+            let offset;
+            if (robotType === 'rover' || robotType === 'quadruped') {
+                offset = new THREE.Vector3(0, 1.2 * scale, -0.8 * scale);
+            } else {
+                offset = new THREE.Vector3(0, -0.2 * scale, -0.5 * scale);
+            }
             offset.applyQuaternion(robot.quaternion);
             fpvCamera.position.copy(robot.position).add(offset);
 
-            // Look forward-down at 45° from the drone's front
-            // Start with drone's yaw, then pitch down 45°
             const q = new THREE.Quaternion();
             const yawQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), robot.rotation.y);
-            const pitchQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 4); // 45° down
-            q.multiplyQuaternions(yawQ, pitchQ);
+            if (robotType === 'rover' || robotType === 'quadruped') {
+                q.copy(yawQ);
+            } else {
+                const pitchQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 4);
+                q.multiplyQuaternions(yawQ, pitchQ);
+            }
             fpvCamera.quaternion.copy(q);
         }
 
@@ -2774,11 +2816,19 @@
         }
         
         function updateTelemetry() {
-            const alt = robotType === 'auv' ? Math.abs(robot.position.y) : robot.position.y;
-            document.getElementById('telem-alt').textContent = alt.toFixed(1) + 'm';
-            document.getElementById('telem-spd').textContent = (robotState.velocity.length() * 10).toFixed(1);
-            document.getElementById('telem-x').textContent = robot.position.x.toFixed(1);
-            document.getElementById('telem-z').textContent = robot.position.z.toFixed(1);
+            if (currentEnvironment === 'maps') {
+                document.getElementById('telem-alt').textContent = mapDroneAlt.toFixed(0) + 'm';
+                document.getElementById('telem-spd').textContent = (robotState.velocity.length() * 10).toFixed(1);
+                document.getElementById('telem-x').textContent = mapDroneLat.toFixed(4);
+                document.getElementById('telem-z').textContent = mapDroneLng.toFixed(4);
+            } else {
+                const rawY = robot.position.y;
+                const alt = robotType === 'auv' ? Math.abs(rawY) : (rawY - envGroundY);
+                document.getElementById('telem-alt').textContent = alt.toFixed(1) + 'm';
+                document.getElementById('telem-spd').textContent = (robotState.velocity.length() * 10).toFixed(1);
+                document.getElementById('telem-x').textContent = robot.position.x.toFixed(1);
+                document.getElementById('telem-z').textContent = robot.position.z.toFixed(1);
+            }
         }
         
         function updateBattery() {
@@ -3160,57 +3210,77 @@
             const canvas = document.getElementById('compass-canvas');
             if (!canvas) return;
             const ctx = canvas.getContext('2d');
-            const w = 240, h = 28;
+            const w = 320, h = 36;
             ctx.clearRect(0, 0, w, h);
 
             const yaw = robot ? -robot.rotation.y * (180 / Math.PI) : 0;
             const cardinals = { 0: 'N', 45: 'NE', 90: 'E', 135: 'SE', 180: 'S', 225: 'SW', 270: 'W', 315: 'NW' };
 
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.0)';
-            ctx.fillRect(0, 0, w, h);
+            // Edge fade gradient
+            const edgeFade = ctx.createLinearGradient(0, 0, w, 0);
+            edgeFade.addColorStop(0, 'rgba(0,0,0,0)');
+            edgeFade.addColorStop(0.1, 'rgba(0,0,0,1)');
+            edgeFade.addColorStop(0.9, 'rgba(0,0,0,1)');
+            edgeFade.addColorStop(1, 'rgba(0,0,0,0)');
 
-            ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-            ctx.fillStyle = '#fff';
-            ctx.font = '10px monospace';
             ctx.textAlign = 'center';
             ctx.lineWidth = 1;
 
             const degsVisible = 120;
             const pxPerDeg = w / degsVisible;
 
+            // Draw ticks and labels
             for (let deg = -degsVisible; deg <= degsVisible; deg += 5) {
                 let actual = ((yaw + deg) % 360 + 360) % 360;
                 const x = w / 2 + deg * pxPerDeg;
-                if (x < 0 || x > w) continue;
+                if (x < 8 || x > w - 8) continue;
 
                 const rounded = Math.round(actual);
-                if (rounded % 45 === 0 && cardinals[rounded]) {
-                    ctx.fillStyle = '#00c8ff';
-                    ctx.font = 'bold 11px monospace';
-                    ctx.fillText(cardinals[rounded], x, 14);
-                    ctx.fillStyle = '#fff';
-                    ctx.font = '10px monospace';
-                } else if (rounded % 10 === 0) {
-                    ctx.fillText(rounded + '°', x, 14);
+                const isCardinal = rounded % 45 === 0 && cardinals[rounded];
+                const isMajor = rounded % 10 === 0;
+
+                // Ticks from bottom up
+                if (rounded % 5 === 0) {
+                    const tickH = isCardinal ? 12 : isMajor ? 8 : 4;
+                    ctx.strokeStyle = isCardinal ? 'rgba(56,139,253,0.6)' : 'rgba(255,255,255,0.25)';
+                    ctx.beginPath();
+                    ctx.moveTo(x, h);
+                    ctx.lineTo(x, h - tickH);
+                    ctx.stroke();
                 }
 
-                if (rounded % 5 === 0) {
-                    const tickH = rounded % 10 === 0 ? 8 : 4;
-                    ctx.beginPath();
-                    ctx.moveTo(x, h - tickH);
-                    ctx.lineTo(x, h);
-                    ctx.stroke();
+                // Labels above ticks
+                if (isCardinal) {
+                    ctx.fillStyle = rounded === 0 ? '#ff4444' : '#388bfd';
+                    ctx.font = 'bold 12px "JetBrains Mono", monospace';
+                    ctx.fillText(cardinals[rounded], x, 14);
+                } else if (isMajor) {
+                    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                    ctx.font = '10px "JetBrains Mono", monospace';
+                    ctx.fillText(rounded + '', x, 13);
                 }
             }
 
-            // Center pointer triangle
-            ctx.fillStyle = '#00c8ff';
+            // Center pointer — inverted triangle at top
+            ctx.fillStyle = '#388bfd';
             ctx.beginPath();
-            ctx.moveTo(w / 2, h - 2);
-            ctx.lineTo(w / 2 - 5, h + 4);
-            ctx.lineTo(w / 2 + 5, h + 4);
+            ctx.moveTo(w / 2, 0);
+            ctx.lineTo(w / 2 - 4, 6);
+            ctx.lineTo(w / 2 + 4, 6);
             ctx.closePath();
             ctx.fill();
+
+            // Heading readout box at center bottom
+            const headingDeg = ((yaw % 360) + 360) % 360;
+            ctx.fillStyle = 'rgba(56,139,253,0.15)';
+            ctx.strokeStyle = 'rgba(56,139,253,0.4)';
+            ctx.lineWidth = 1;
+            const boxW = 36, boxH = 14;
+            ctx.fillRect(w/2 - boxW/2, h - boxH - 1, boxW, boxH);
+            ctx.strokeRect(w/2 - boxW/2, h - boxH - 1, boxW, boxH);
+            ctx.fillStyle = '#e6edf3';
+            ctx.font = 'bold 10px "JetBrains Mono", monospace';
+            ctx.fillText(Math.round(headingDeg) + '°', w/2, h - 3);
 
             // Wind direction arrow on compass (if drone)
             if (robotType === 'drone' && windVector.length() > 0.001) {
@@ -3319,97 +3389,218 @@
             document.head.appendChild(script);
         }
 
+        // Hide map labels by injecting CSS into gmp-map-3d shadow DOM
+        function hideMapLabels(mapEl) {
+            // Wait for shadow DOM to be available
+            const tryInject = () => {
+                if (mapEl.shadowRoot) {
+                    const style = document.createElement('style');
+                    style.textContent = `
+                        /* Hide all place labels, business names, and POI icons */
+                        .gm-style label, .poi-info-window, [class*="label"],
+                        [class*="place-name"], [class*="poi"], .gm-style .gm-sv-label,
+                        canvas + div > div > div { display: none !important; }
+                    `;
+                    mapEl.shadowRoot.appendChild(style);
+
+                    // Also recurse into nested shadow roots
+                    mapEl.shadowRoot.querySelectorAll('*').forEach(el => {
+                        if (el.shadowRoot) {
+                            const innerStyle = style.cloneNode(true);
+                            el.shadowRoot.appendChild(innerStyle);
+                        }
+                    });
+                } else {
+                    setTimeout(tryInject, 500);
+                }
+            };
+            // Try after a delay to let the element initialize
+            setTimeout(tryInject, 1000);
+            setTimeout(tryInject, 3000); // Retry in case first attempt was too early
+        }
+
         function createMapsEnv(cityKey) {
             const city = MAP_CITIES[cityKey] || MAP_CITIES.nyc;
             currentMapCity = cityKey;
             mapDroneLat = city.lat;
             mapDroneLng = city.lng;
-            mapDroneAlt = 0;
-            mapCamRange = 120; // Reset chase cam range
+            mapDroneAlt = 400;
+            mapCamRange = 200;
 
-            // Show maps underneath, keep Three.js canvas on top (transparent) for drone model
+            // Show maps underneath, Three.js overlay on top
             document.getElementById('maps-container').style.display = 'block';
-            const sceneContainer = document.getElementById('scene-container');
-            sceneContainer.style.display = '';
-            sceneContainer.style.zIndex = '5'; // Above map (z-index 1), below UI (z-index 100)
-            sceneContainer.style.pointerEvents = 'none'; // Let clicks through to map
-            // Clear Three.js background so map shows through
+            const sceneEl = document.getElementById('scene-container');
+            sceneEl.style.display = '';
+            sceneEl.style.zIndex = '5';
+            sceneEl.style.pointerEvents = 'none';
             scene.background = null;
             scene.fog = null;
 
-            // Reset drone to near ground level for maps mode
-            robotState.position.set(0, 0.5, 0);
+            // Reset drone at 400m altitude (robot.y = alt/5 + 0.3)
+            const startY = 400 / 5 + 0.3; // 80.3
+            robotState.position.set(0, startY, 0);
             robotState.velocity.set(0, 0, 0);
-            if (robot) {
-                robot.position.set(0, 0.5, 0);
-                robot.rotation.set(0, 0, 0);
-            }
+            if (robot) { robot.position.set(0, startY, 0); robot.rotation.set(0, 0, 0); }
             mapCamHeading = city.heading || 0;
+            mapInitialHeading = city.heading || 0;
 
-            // Keep Three.js scene lit for drone model overlay
+            // Lighting for drone model overlay
             const mapsLight = new THREE.AmbientLight(0xffffff, 1.0);
-            scene.add(mapsLight);
-            environmentObjects.push(mapsLight);
+            scene.add(mapsLight); environmentObjects.push(mapsLight);
             const mapsSun = new THREE.DirectionalLight(0xffffff, 0.8);
             mapsSun.position.set(50, 100, 50);
-            scene.add(mapsSun);
-            environmentObjects.push(mapsSun);
-            // Load HDRI for environment lighting only (NOT as background)
-            loadHDRI('hdri/urban.hdr', () => {
-                scene.background = null; // Keep transparent so map shows through
-            });
+            scene.add(mapsSun); environmentObjects.push(mapsSun);
+            loadHDRI('hdri/urban.hdr', () => { scene.background = null; });
 
             loadMapsAPI(() => {
                 const mapDiv = document.getElementById('maps-container');
-                // Remove old gmp-map-3d if any, but keep the drone marker
                 const oldMap = mapDiv.querySelector('gmp-map-3d');
                 if (oldMap) oldMap.remove();
-
-                // Create gmp-map-3d exactly as per official Google docs
                 const map3d = document.createElement('gmp-map-3d');
                 map3d.setAttribute('mode', 'hybrid');
                 map3d.setAttribute('center', city.lat + ', ' + city.lng);
                 map3d.setAttribute('range', '120');
                 map3d.setAttribute('tilt', '65');
                 map3d.setAttribute('heading', String(city.heading || 0));
+                map3d.setAttribute('default-labels-disabled', '');
                 map3d.style.width = '100%';
                 map3d.style.height = '100%';
                 mapDiv.insertBefore(map3d, mapDiv.firstChild);
-
                 googleMap = map3d;
                 showToast('3D Photorealistic Map — ' + city.name);
-                console.log('gmp-map-3d created for', city.name, 'center:', city.lat + ',' + city.lng);
             });
         }
 
         let mapCamRange = 120; // Chase cam distance on map — closer for street-level feel
         let mapCamHeading = 0; // Map heading (follows drone yaw for chase cam)
+        let mapInitialHeading = 0; // Fixed initial city heading — used for velocity rotation
+
+        // Autopilot — steers drone toward current waypoint
+        function updateAutopilot() {
+            if (!autopilot.active || autopilot.waypoints.length === 0) return;
+            if (currentEnvironment !== 'maps' || !googleMap) return; // Wait for map to be ready
+
+            const wp = autopilot.waypoints[autopilot.currentIndex];
+            if (!wp) { autopilot.active = false; return; }
+
+            // Distance to waypoint in degrees
+            const dLat = wp.lat - mapDroneLat;
+            const dLng = wp.lng - mapDroneLng;
+            const dist = Math.sqrt(dLat * dLat + dLng * dLng);
+
+            // Altitude: use waypoint altitude or default, but never below minimum cruise
+            const targetAlt = Math.max(wp.altitude || autopilot.targetAlt, autopilot.minCruiseAlt);
+            const altDiff = targetAlt - mapDroneAlt;
+            const belowCruise = mapDroneAlt < autopilot.minCruiseAlt;
+
+            // PHASE 1: Climb to safe altitude before any lateral movement
+            if (belowCruise) {
+                keys['w'] = false;
+                keys['arrowleft'] = false;
+                keys['arrowright'] = false;
+                keys['q'] = false; keys['e'] = false;
+                // Direct Y climb — fast
+                const cruiseY = autopilot.minCruiseAlt / 5 + 0.3;
+                robot.position.y += (cruiseY - robot.position.y) * 0.05;
+                robotState.position.y = robot.position.y;
+                return; // Don't move laterally until above buildings
+            }
+
+            // Check arrival
+            if (dist < autopilot.arrivalThreshold) {
+                showToast('Reached: ' + (wp.name || ('Waypoint ' + (autopilot.currentIndex + 1))));
+                autopilot.currentIndex++;
+                if (autopilot.currentIndex >= autopilot.waypoints.length) {
+                    if (autopilot.loop) {
+                        autopilot.currentIndex = 0;
+                        showToast('Looping route...');
+                    } else {
+                        autopilot.active = false;
+                        ['w', 's', 'a', 'd', 'q', 'e', 'arrowleft', 'arrowright'].forEach(k => keys[k] = false);
+                        ROBOTS[robotType].physics.thrust = 0.06;
+                        showToast('Navigation complete!');
+                        return;
+                    }
+                }
+                return;
+            }
+
+            // PHASE 2: Navigate laterally at safe altitude
+            const speeds = { slow: 0.4, normal: 0.7, fast: 1.0 };
+            const speedMult = speeds[autopilot.speed] || 0.7;
+
+            // Steer toward waypoint: compute bearing (accounting for longitude scaling at latitude)
+            const dLngCorrected = dLng * Math.cos(mapDroneLat * Math.PI / 180);
+            const bearing = Math.atan2(dLngCorrected, dLat); // radians, 0=north
+            const targetYaw = -bearing;
+
+            // Yaw toward target
+            let yawDiff = targetYaw - robot.rotation.y;
+            while (yawDiff > Math.PI) yawDiff -= 2 * Math.PI;
+            while (yawDiff < -Math.PI) yawDiff += 2 * Math.PI;
+
+            // Turn toward waypoint
+            if (Math.abs(yawDiff) > 0.05) {
+                keys['arrowleft'] = yawDiff > 0;
+                keys['arrowright'] = yawDiff < 0;
+            } else {
+                keys['arrowleft'] = false;
+                keys['arrowright'] = false;
+            }
+
+            // Move forward when roughly facing the waypoint
+            keys['w'] = Math.abs(yawDiff) < 1.0;
+
+            // Maintain altitude — directly adjust robot Y (Q/E too slow for maps scale)
+            keys['q'] = false; keys['e'] = false;
+            const targetY = targetAlt / 5 + 0.3;
+            const yDiff = targetY - robot.position.y;
+            if (Math.abs(yDiff) > 0.1) {
+                robot.position.y += yDiff * 0.03; // Smooth convergence
+                robotState.position.y = robot.position.y;
+            }
+
+            ROBOTS[robotType].physics.thrust = 0.06 * speedMult;
+        }
 
         function updateMapsPosition() {
             if (currentEnvironment !== 'maps' || !googleMap) return;
 
-            // Map Three.js velocity to lat/lng, rotated by map heading so screen-forward = map-forward
+            updateAutopilot();
+
             const metersToDeg = 0.000009;
-            const hSpeed = Math.sqrt(robotState.velocity.x * robotState.velocity.x + robotState.velocity.z * robotState.velocity.z);
+            const hSpeed = Math.sqrt(robotState.velocity.x ** 2 + robotState.velocity.z ** 2);
+
             if (hSpeed > 0.02) {
-                // Rotate velocity by map heading so Three.js forward (-Z) aligns with map forward
-                const headRad = mapCamHeading * Math.PI / 180;
-                const cosH = Math.cos(headRad);
-                const sinH = Math.sin(headRad);
+                // World-space velocity directly to lat/lng
+                // Three.js: -Z = north when rotation.y=0, +X = east
+                // Rotate by initial city heading to align with map
+                const headRad = mapInitialHeading * Math.PI / 180;
+                const cosH = Math.cos(headRad), sinH = Math.sin(headRad);
                 const vx = robotState.velocity.x;
                 const vz = robotState.velocity.z;
-                const rotVx = vx * cosH - vz * sinH;
-                const rotVz = vx * sinH + vz * cosH;
-                mapDroneLat += -rotVz * metersToDeg;
-                mapDroneLng += rotVx * metersToDeg / Math.cos(mapDroneLat * Math.PI / 180);
+                const mapVx = vx * cosH - vz * sinH;  // east component
+                const mapVz = vx * sinH + vz * cosH;  // north component
+                mapDroneLat += -mapVz * metersToDeg * 3;
+                mapDroneLng += mapVx * metersToDeg * 3 / Math.cos(mapDroneLat * Math.PI / 180);
             }
 
-            // Sync altitude from Three.js drone Y position (ground = 0.3)
-            mapDroneAlt = Math.max(0, (robot.position.y - 0.3) * 5); // 1 Three.js unit ≈ 5m real world
+            mapDroneAlt += robotState.velocity.y * 0.5;
+            if (mapDroneAlt < 2) mapDroneAlt = 2;
 
-            // Map heading stays fixed — drone model rotates on screen, no map orbiting
-            const effectiveRange = mapCamRange + mapDroneAlt * 1.2;
-            const effectiveTilt = Math.max(45, 67 - mapDroneAlt * 0.15);
+            // Sync altitude from Three.js drone Y position
+            mapDroneAlt = Math.max(0, (robot.position.y - 0.3) * 5);
+
+            // Map heading follows drone yaw
+            const droneHeadingDeg = (-robot.rotation.y * 180 / Math.PI) % 360;
+            let headingDiff = droneHeadingDeg - mapCamHeading;
+            if (headingDiff > 180) headingDiff -= 360;
+            if (headingDiff < -180) headingDiff += 360;
+            mapCamHeading += headingDiff * 0.06;
+
+            // Chase cam: range scales gently with altitude, tilt stays steep to keep camera near drone altitude
+            const effectiveRange = mapCamRange + mapDroneAlt * 0.3;
+            const effectiveTilt = Math.max(55, 70 - mapDroneAlt * 0.02);
 
             try {
                 googleMap.setAttribute('center', mapDroneLat + ', ' + mapDroneLng + ', ' + mapDroneAlt);
@@ -3439,9 +3630,9 @@
             sceneContainer.style.zIndex = '1';
             sceneContainer.style.pointerEvents = '';
             document.getElementById('maps-container').style.display = 'none';
-            // Restore default Three.js chase cam values
             chaseCamDistance = 12;
             chaseCamHeight = 5;
+            googleMap = null;
         }
 
         // ============= NAV LIGHT BLINK (Phase 1A) =============
@@ -3480,11 +3671,13 @@
             drawCompass();
             drawAudioWaveform();
 
-            // Animate ocean with multi-frequency waves
+            // Animate ocean environment
+            const time = Date.now() * 0.001;
             environmentObjects.forEach(obj => {
-                if (obj.userData && obj.userData.isOcean) {
+                if (!obj.userData) return;
+                if (obj.userData.isOcean) {
+                    // Multi-frequency waves
                     const positions = obj.geometry.attributes.position.array;
-                    const time = Date.now() * 0.001;
                     for (let i = 0; i < positions.length; i += 3) {
                         const x = positions[i], y = positions[i + 1];
                         positions[i + 2] =
@@ -3493,6 +3686,34 @@
                             Math.cos(y * 0.08 + time * 0.7) * 0.8;
                     }
                     obj.geometry.attributes.position.needsUpdate = true;
+                }
+                // Kelp swaying
+                if (obj.userData.isKelp) {
+                    const k = obj.userData.kelpBase;
+                    const sway = Math.sin(time * 0.8 + k.x * 0.1 + k.z * 0.1) * (k.seg + 1) * 0.15;
+                    obj.position.x = k.x + sway;
+                    obj.rotation.z = sway * 0.1;
+                }
+                // Fish schools — circular swimming
+                if (obj.userData.isFishSchool) {
+                    const d = obj.userData;
+                    d.swimPhase += d.swimSpeed;
+                    obj.position.x = d.basePos.x + Math.cos(d.swimPhase) * d.swimRadius;
+                    obj.position.z = d.basePos.z + Math.sin(d.swimPhase) * d.swimRadius;
+                    obj.position.y = d.basePos.y + Math.sin(d.swimPhase * 2) * 1.5;
+                    obj.rotation.y = -d.swimPhase + Math.PI / 2; // Face swim direction
+                }
+                // Jellyfish bobbing
+                if (obj.userData.isJellyfish) {
+                    obj.userData.bobPhase += 0.008;
+                    obj.position.y += Math.sin(obj.userData.bobPhase) * 0.01;
+                    obj.rotation.y += 0.002;
+                }
+                // Bioluminescent pulse
+                if (obj.userData.isBioGlow) {
+                    const pulse = 0.6 + Math.sin(time * 2 + obj.position.x) * 0.4;
+                    obj.material.opacity = pulse;
+                    obj.scale.setScalar(0.8 + pulse * 0.4);
                 }
             });
 
@@ -3523,45 +3744,39 @@
         function renderFPVPip() {
             if (!robot || !fpvRenderer) return;
             const pip = document.getElementById('fpv-pip');
+            if (!pip) return;
+            pip.style.display = '';
 
             if (currentEnvironment === 'maps') {
-                // In Maps mode: show a second gmp-map-3d as the FPV camera
+                // Maps mode: use gmp-map-3d for FPV
                 if (!fpvMap3d && mapsApiLoaded) {
-                    // Hide the Three.js FPV canvas, create a map FPV element
                     if (fpvRenderer.domElement) fpvRenderer.domElement.style.display = 'none';
                     fpvMap3d = document.createElement('gmp-map-3d');
                     fpvMap3d.setAttribute('mode', 'hybrid');
-                    fpvMap3d.setAttribute('center', mapDroneLat + ', ' + mapDroneLng);
-                    fpvMap3d.setAttribute('range', '30');
-                    fpvMap3d.setAttribute('tilt', '80');
-                    fpvMap3d.setAttribute('heading', '0');
-                    fpvMap3d.style.width = '100%';
-                    fpvMap3d.style.height = '100%';
-                    fpvMap3d.style.borderRadius = '10px';
+                    fpvMap3d.setAttribute('default-labels-disabled', '');
+                    fpvMap3d.style.width = '100%'; fpvMap3d.style.height = '100%'; fpvMap3d.style.borderRadius = '10px';
                     pip.insertBefore(fpvMap3d, pip.firstChild);
                 }
-                // Update FPV map camera to match drone's actual position and altitude
                 if (fpvMap3d) {
                     const fpvHeading = (-robot.rotation.y * 180 / Math.PI) % 360;
-                    fpvMap3d.setAttribute('center', mapDroneLat + ', ' + mapDroneLng + ', ' + mapDroneAlt);
+                    const fwdOffset = 0.0005;
+                    const headRad = -robot.rotation.y;
+                    const fpvLat = mapDroneLat + Math.cos(headRad) * fwdOffset;
+                    const fpvLng = mapDroneLng + Math.sin(headRad) * fwdOffset / Math.cos(mapDroneLat * Math.PI / 180);
+                    // FPV: camera AT drone altitude, looking forward and down at 65° tilt
+                    fpvMap3d.setAttribute('center', fpvLat + ',' + fpvLng + ',' + Math.max(5, mapDroneAlt));
                     fpvMap3d.setAttribute('heading', String(fpvHeading));
-                    // FPV range and tilt scale with altitude for realistic downward camera
-                    // Higher altitude = farther range (see more ground), lower tilt (more top-down)
-                    const fpvRange = Math.max(5, mapDroneAlt * 0.8 + 10);
-                    const fpvTilt = Math.max(40, 80 - mapDroneAlt * 0.5);
-                    fpvMap3d.setAttribute('range', String(fpvRange));
-                    fpvMap3d.setAttribute('tilt', String(fpvTilt));
+                    fpvMap3d.setAttribute('tilt', '65');
+                    fpvMap3d.setAttribute('range', '50');
                 }
                 return;
             }
 
-            // In Three.js mode: remove map FPV if it exists, show canvas
+            // Non-maps: clean up map PiP, use Three.js FPV
             if (fpvMap3d) {
-                fpvMap3d.remove();
-                fpvMap3d = null;
+                fpvMap3d.remove(); fpvMap3d = null;
                 if (fpvRenderer.domElement) fpvRenderer.domElement.style.display = 'block';
             }
-            // Hide robot so we don't see ourselves in first-person
             robot.visible = false;
             fpvRenderer.render(scene, fpvCamera);
             robot.visible = true;
@@ -3631,34 +3846,55 @@
                 btn.addEventListener('mousedown', e => e.stopPropagation(), true);
             });
 
-            console.log('✅ Button listeners attached');
+            // FPV PiP click to toggle fullscreen
+            document.getElementById('fpv-pip').addEventListener('click', () => {
+                const pip = document.getElementById('fpv-pip');
+                pip.classList.toggle('fullscreen');
+            });
+
+            console.log('Button listeners attached');
         }
         
         // ============= GEMINI LIVE VOICE API =============
         let websocket = null;
         let audioContext = null;
+        let playbackCtx = null; // Separate context for playback at 24kHz
         let mediaStream = null;
         let isConnected = false;
-        
+        let audioQueue = [];
+        let isPlaying = false;
+        let frameInterval = null; // FPV frame sender interval
+        let screenStream = null; // Screen share stream for maps mode
+        let screenVideo = null;  // Video element for screen capture
+
+        // Drone command queue — executed from Gemini tool calls
+        let commandQueue = [];
+
         async function startVoice() {
             console.log('Starting voice control');
             document.getElementById('start-btn').classList.add('hidden');
             document.getElementById('voice-overlay').style.display = 'flex';
+            // Start screen share for maps mode vision
+            if (currentEnvironment === 'maps' && !screenStream) {
+                await startScreenShare();
+            }
             await initGeminiLive();
             await startAudioCapture();
         }
-        
+
         function getEnvironmentDescription() {
             const descriptions = {
                 warehouse: "an industrial warehouse complex with shipping containers, cranes, and a helipad",
                 city: "a nighttime cityscape with towering skyscrapers and glowing windows",
                 forest: "a dense forest with tall pine trees and a small clearing",
                 desert: "a vast desert with sand dunes, ancient ruins, and distant pyramids",
-                ocean: "an ocean oil rig platform surrounded by waves, with underwater coral and marine life below"
+                ocean: "an underwater scene with coral reefs, kelp forests, fish schools, jellyfish, a shipwreck, and an oil rig above",
+                london: "a 3D virtual city with buildings, streets, and urban scenery (NOT a real city — this is a simulated environment)",
+                maps: "Google Maps 3D photorealistic view of a real city"
             };
             return descriptions[currentEnvironment] || "a 3D environment";
         }
-        
+
         function getRobotDescription() {
             const descriptions = {
                 drone: "a quadcopter drone capable of flying in any direction",
@@ -3668,93 +3904,316 @@
             };
             return descriptions[robotType] || "a robot";
         }
-        
+
+        // Tool declarations for Gemini — allows the AI to control the drone
+        function getToolDeclarations() {
+            return [{
+                functionDeclarations: [
+                    {
+                        name: "move_robot",
+                        description: "Move the robot in a direction. Drone/AUV: can go forward, backward, left (strafe), right (strafe), up, down. Rover/Quadruped: can go forward, backward, left (turn+drive), right (turn+drive). Ground vehicles CANNOT go up or down.",
+                        parameters: {
+                            type: "OBJECT",
+                            properties: {
+                                direction: {
+                                    type: "STRING",
+                                    enum: ["forward", "backward", "left", "right", "up", "down"],
+                                    description: "Direction to move. up/down only for drone and AUV."
+                                },
+                                duration: {
+                                    type: "NUMBER",
+                                    description: "How long to move in seconds (default 1)"
+                                }
+                            },
+                            required: ["direction"]
+                        }
+                    },
+                    {
+                        name: "rotate_robot",
+                        description: "Rotate/turn the robot in place. Use for 'turn left', 'turn right', 'turn around' (180°), 'face north'. Works for all robot types.",
+                        parameters: {
+                            type: "OBJECT",
+                            properties: {
+                                direction: {
+                                    type: "STRING",
+                                    enum: ["left", "right"],
+                                    description: "Direction to rotate"
+                                },
+                                degrees: {
+                                    type: "NUMBER",
+                                    description: "Degrees to rotate (default 45)"
+                                }
+                            },
+                            required: ["direction"]
+                        }
+                    },
+                    {
+                        name: "set_speed",
+                        description: "Change the robot's movement speed. Use for 'go faster', 'slow down', 'full speed'.",
+                        parameters: {
+                            type: "OBJECT",
+                            properties: {
+                                speed: {
+                                    type: "STRING",
+                                    enum: ["slow", "normal", "fast"],
+                                    description: "Speed setting"
+                                }
+                            },
+                            required: ["speed"]
+                        }
+                    },
+                    {
+                        name: "stop",
+                        description: "Stop all movement. Use for 'stop', 'halt', 'hover', 'hold position'.",
+                        parameters: { type: "OBJECT", properties: {} }
+                    },
+                    {
+                        name: "get_status",
+                        description: "Get current robot status (position, altitude, speed, battery). Use when asked 'where am I', 'what's my altitude', 'status report'.",
+                        parameters: { type: "OBJECT", properties: {} }
+                    },
+                    {
+                        name: "switch_environment",
+                        description: "Switch to a different environment. Use for 'go to ocean', 'switch to city', etc.",
+                        parameters: {
+                            type: "OBJECT",
+                            properties: {
+                                environment: {
+                                    type: "STRING",
+                                    enum: ["london", "tokyo", "ocean", "warehouse", "city", "forest", "desert", "maps"],
+                                    description: "Environment to switch to"
+                                }
+                            },
+                            required: ["environment"]
+                        }
+                    },
+                    {
+                        name: "navigate_to",
+                        description: "Navigate the drone to a specific location by name or GPS coordinates. Works in Maps mode. Use for 'fly to Central Park', 'go to the Empire State Building', 'take me to Times Square'. You MUST provide lat/lng based on your knowledge of the city. Plan a scenic route with multiple waypoints using set_waypoints instead if the user asks for a scenic route.",
+                        parameters: {
+                            type: "OBJECT",
+                            properties: {
+                                lat: { type: "NUMBER", description: "Latitude of destination" },
+                                lng: { type: "NUMBER", description: "Longitude of destination" },
+                                altitude: { type: "NUMBER", description: "Flight altitude in meters (default 50)" },
+                                name: { type: "STRING", description: "Name of the destination for display" }
+                            },
+                            required: ["lat", "lng"]
+                        }
+                    },
+                    {
+                        name: "set_waypoints",
+                        description: "Set a series of GPS waypoints for the drone to follow autonomously. Use this for scenic routes, tours, or multi-stop navigation. Each waypoint has lat, lng, and optional altitude. The drone will fly to each waypoint in order. IMPORTANT: You must use your knowledge of real-world geography to generate accurate lat/lng coordinates for landmarks, streets, and points of interest.",
+                        parameters: {
+                            type: "OBJECT",
+                            properties: {
+                                waypoints: {
+                                    type: "ARRAY",
+                                    items: {
+                                        type: "OBJECT",
+                                        properties: {
+                                            lat: { type: "NUMBER", description: "Latitude" },
+                                            lng: { type: "NUMBER", description: "Longitude" },
+                                            altitude: { type: "NUMBER", description: "Altitude in meters" },
+                                            name: { type: "STRING", description: "Waypoint label" }
+                                        },
+                                        required: ["lat", "lng"]
+                                    },
+                                    description: "Array of waypoints to follow in order"
+                                },
+                                speed: {
+                                    type: "STRING",
+                                    enum: ["slow", "normal", "fast"],
+                                    description: "Navigation speed (default normal)"
+                                },
+                                loop: {
+                                    type: "BOOLEAN",
+                                    description: "Whether to loop back to start after completing (default false)"
+                                }
+                            },
+                            required: ["waypoints"]
+                        }
+                    },
+                    {
+                        name: "cancel_navigation",
+                        description: "Cancel current autonomous navigation / waypoint following. Use for 'stop navigating', 'cancel route', 'I'll take manual control'.",
+                        parameters: { type: "OBJECT", properties: {} }
+                    },
+                    {
+                        name: "switch_robot",
+                        description: "Switch to a different robot type. Use for 'switch to rover', 'use the submarine', 'become the drone', etc.",
+                        parameters: {
+                            type: "OBJECT",
+                            properties: {
+                                robot: {
+                                    type: "STRING",
+                                    enum: ["drone", "auv", "rover", "quadruped"],
+                                    description: "Robot type to switch to"
+                                }
+                            },
+                            required: ["robot"]
+                        }
+                    },
+                    {
+                        name: "set_altitude",
+                        description: "Set the drone or AUV's altitude/depth. Drone: fly higher/lower. AUV: dive deeper/surface. NOT for rover/quadruped.",
+                        parameters: {
+                            type: "OBJECT",
+                            properties: {
+                                altitude: { type: "NUMBER", description: "Target altitude in meters" }
+                            },
+                            required: ["altitude"]
+                        }
+                    }
+                ]
+            }];
+        }
+
         function getSystemPrompt() {
-            return `You are DroneGPT, an AI that inhabits ${getRobotDescription()} moving through a 3D world. You can see the environment and respond to voice commands.
+            return `You are DroneGPT, an AI that inhabits ${getRobotDescription()} exploring a 3D world. You can SEE through the robot's camera — images from the FPV camera are streamed to you in real-time.
 
 PERSONALITY:
-- You ARE the robot - speak in first person ("I can see...", "I'm moving over...", "Below me is...")
-- Be observant and describe what you see when asked
-- Keep responses brief (1-2 sentences max)
-- Be helpful and enthusiastic about exploring
-- You have a slightly playful personality
+- You ARE the robot — speak in first person ("I can see...", "I'm heading over...", "Below me is...")
+- When you receive camera images, describe what you ACTUALLY see in them
+- Keep responses to 1-2 SHORT sentences
+- Be enthusiastic about exploring
+- Sound natural and conversational
 
 CURRENT STATE:
-- Robot: ${ROBOTS[robotType].name} (${ROBOTS[robotType].icon})
+- Robot: ${ROBOTS[robotType].name}
 - Environment: ${getEnvironmentDescription()}
+- Altitude: ${robot ? (robot.position.y - envGroundY).toFixed(1) : 0}m
+- Speed: ${robotState.velocity.length().toFixed(2)} m/s
 - Battery: ${Math.round(battery)}%
+${currentEnvironment === 'maps' ? `- GPS: ${mapDroneLat.toFixed(6)}, ${mapDroneLng.toFixed(6)}
+- Map City: ${currentMapCity}
+- Autopilot: ${autopilot.active ? 'ACTIVE — heading to ' + (autopilot.waypoints[autopilot.currentIndex]?.name || 'waypoint') : 'OFF'}` : ''}
 
-CAPABILITIES for ${ROBOTS[robotType].name}:
-${robotType === 'drone' ? '- Flying in any direction, ascending, descending, hovering' :
-  robotType === 'auv' ? '- Diving, surfacing, underwater exploration, scanning seabed' :
-  robotType === 'rover' ? '- Driving forward/backward, turning, navigating terrain' :
-  '- Walking, running, sitting, standing, looking around'}
+USE YOUR TOOLS to control the robot when the user asks you to move, turn, stop, etc.
 
-Remember: Keep responses SHORT and conversational.`;
+ROBOT-SPECIFIC CONTROLS:
+${robotType === 'drone' ? '- Drone: forward/backward/left/right (strafe), up/down (altitude), turn left/right (yaw)' :
+  robotType === 'auv' ? '- AUV Submarine: forward/backward/left/right (strafe), up (surface)/down (dive), turn. Holds depth automatically — neutral buoyancy.' :
+  robotType === 'rover' ? '- Rover: forward/backward, turn left/right (steers like a car — must be moving to turn effectively). CANNOT fly or go up/down.' :
+  '- Quadruped: forward/backward, turn left/right. Walks on ground. CANNOT fly.'}
+
+WHAT YOU SEE:
+- You receive the robot's FPV camera feed${robotType === 'rover' || robotType === 'quadruped' ? ' — forward-facing camera at eye level' : ' — downward-angled camera from the front'}
+- In Maps mode: the FPV shows real 3D photorealistic Google Maps — describe real landmarks, buildings, streets you recognize
+- In 3D sim environments (City, Underwater, Tokyo): these are VIRTUAL/SIMULATED scenes, NOT real places. Describe what you see in the image (buildings, terrain, objects) WITHOUT referencing real-world city names or GPS coordinates. Just describe the shapes, colors, and objects visible.
+- NEVER mention GPS coordinates, altitude numbers, or real city names in simulated environments
+- NEVER say "I see darkness" or "I can't see anything"
+
+NAVIGATION (Maps mode):
+- For simple destinations: use navigate_to with the lat/lng coordinates
+- For scenic routes or tours: use set_waypoints with multiple intermediate waypoints
+- You KNOW real-world geography — use your knowledge to provide accurate lat/lng for landmarks
+- IMPORTANT: Always set altitude to at least 150m to fly ABOVE buildings safely. Use 200-300m for cities with skyscrapers.
+- For scenic flyovers, vary altitude: 150m over streets, 300m+ when passing skyscrapers, lower over parks/water
+- When the user says "fly to X" or "take me to X", generate the GPS coordinates yourself`;
         }
-        
+
         async function initGeminiLive() {
             try {
                 const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${GEMINI_API_KEY}`;
-                
+
                 websocket = new WebSocket(wsUrl);
-                
+
                 websocket.onopen = () => {
                     console.log('Connected to Gemini Live API');
                     setConnectionStatus(true);
-                    
+
+                    // Send setup with tools, VAD, and transcription
                     websocket.send(JSON.stringify({
                         setup: {
                             model: `models/${MODEL}`,
                             generationConfig: {
-                                responseModalities: ['AUDIO', 'TEXT'],
-                                speechConfig: {
-                                    voiceConfig: {
-                                        prebuiltVoiceConfig: {
-                                            voiceName: 'Puck'
-                                        }
+                                response_modalities: ['AUDIO'],
+                                speech_config: {
+                                    voice_config: {
+                                        prebuilt_voice_config: { voice_name: 'Puck' }
                                     }
+                                }
+                            },
+                            input_audio_transcription: {},
+                            output_audio_transcription: {},
+                            realtime_input_config: {
+                                automatic_activity_detection: {
+                                    disabled: false,
+                                    start_of_speech_sensitivity: 'START_SENSITIVITY_HIGH',
+                                    end_of_speech_sensitivity: 'END_SENSITIVITY_LOW',
+                                    prefix_padding_ms: 20,
+                                    silence_duration_ms: 500
                                 }
                             },
                             systemInstruction: {
                                 parts: [{ text: getSystemPrompt() }]
-                            }
+                            },
+                            tools: getToolDeclarations()
                         }
                     }));
                 };
-                
-                websocket.onmessage = (event) => handleGeminiResponse(JSON.parse(event.data));
+
+                websocket.onmessage = async (event) => {
+                    // Gemini sends both JSON (text) and binary (audio) frames
+                    if (event.data instanceof Blob) {
+                        // Binary audio data — read as text first (it's JSON-wrapped)
+                        const text = await event.data.text();
+                        try {
+                            const data = JSON.parse(text);
+                            handleGeminiResponse(data);
+                        } catch (e) {
+                            // Raw binary audio — shouldn't happen with Gemini Live
+                            console.log('Binary message, size:', event.data.size);
+                        }
+                        return;
+                    }
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleGeminiResponse(data);
+                    } catch (e) {
+                        console.error('Failed to parse Gemini response:', e);
+                    }
+                };
                 websocket.onerror = (error) => {
                     console.error('WebSocket error:', error);
                     setConnectionStatus(false);
                 };
-                websocket.onclose = () => {
-                    console.log('WebSocket closed');
+                websocket.onclose = (event) => {
+                    console.log('WebSocket closed:', event.code, event.reason);
                     setConnectionStatus(false);
+                    showToast('Connection lost — reconnecting...');
+                    // Auto-reconnect after 2s
+                    setTimeout(() => {
+                        if (!isConnected) {
+                            console.log('Attempting reconnect...');
+                            initGeminiLive();
+                        }
+                    }, 2000);
                 };
             } catch (error) {
                 console.error('Failed to connect:', error);
                 document.getElementById('voice-status').textContent = 'Connection failed. Click mic to retry.';
             }
         }
-        
+
         function setConnectionStatus(connected) {
             isConnected = connected;
             document.getElementById('status-dot').classList.toggle('connected', connected);
             document.getElementById('status-text').textContent = connected ? 'Connected' : 'Disconnected';
         }
-        
+
         async function startAudioCapture() {
             try {
                 mediaStream = await navigator.mediaDevices.getUserMedia({
                     audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true }
                 });
-                
+
                 audioContext = new AudioContext({ sampleRate: 16000 });
                 const source = audioContext.createMediaStreamSource(mediaStream);
-                const processor = audioContext.createScriptProcessor(4096, 1, 1);
+                const processor = audioContext.createScriptProcessor(8192, 1, 1); // Larger buffer = fewer sends
 
-                // Audio analyser for waveform visualization (Phase 2E)
+                // Audio analyser for waveform visualization
                 audioAnalyser = audioContext.createAnalyser();
                 audioAnalyser.fftSize = 128;
                 analyserData = new Uint8Array(audioAnalyser.frequencyBinCount);
@@ -3762,21 +4221,29 @@ Remember: Keep responses SHORT and conversational.`;
 
                 processor.onaudioprocess = (e) => {
                     if (!isConnected || !websocket || websocket.readyState !== WebSocket.OPEN) return;
-                    
+                    // Don't send if WebSocket buffer is backed up (> 64KB queued)
+                    if (websocket.bufferedAmount > 65536) return;
+
                     const inputData = e.inputBuffer.getChannelData(0);
                     const pcm16 = convertFloat32ToPCM16(inputData);
                     const base64Audio = arrayBufferToBase64(pcm16.buffer);
-                    
+
                     websocket.send(JSON.stringify({
                         realtimeInput: {
                             mediaChunks: [{ mimeType: 'audio/pcm;rate=16000', data: base64Audio }]
                         }
                     }));
                 };
-                
+
                 source.connect(processor);
                 processor.connect(audioContext.destination);
-                
+
+                // Create playback context at 24kHz (Gemini output rate)
+                playbackCtx = new AudioContext({ sampleRate: 24000 });
+
+                // Start sending FPV frames to Gemini
+                startFrameSender();
+
                 document.getElementById('voice-indicator').classList.add('listening');
                 document.getElementById('voice-status').textContent = 'Listening... speak naturally';
             } catch (error) {
@@ -3784,7 +4251,7 @@ Remember: Keep responses SHORT and conversational.`;
                 document.getElementById('voice-status').textContent = 'Microphone access denied';
             }
         }
-        
+
         function convertFloat32ToPCM16(float32Array) {
             const pcm16 = new Int16Array(float32Array.length);
             for (let i = 0; i < float32Array.length; i++) {
@@ -3793,57 +4260,477 @@ Remember: Keep responses SHORT and conversational.`;
             }
             return pcm16;
         }
-        
+
         function arrayBufferToBase64(buffer) {
             const bytes = new Uint8Array(buffer);
             let binary = '';
             for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
             return btoa(binary);
         }
-        
+
+
+        async function startScreenShare() {
+            try {
+                screenStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { displaySurface: 'browser', frameRate: 5 },
+                    audio: false,
+                    preferCurrentTab: true
+                });
+                screenVideo = document.createElement('video');
+                screenVideo.srcObject = screenStream;
+                screenVideo.muted = true;
+                await screenVideo.play();
+                screenStream.getVideoTracks()[0].addEventListener('ended', () => {
+                    screenStream = null; screenVideo = null;
+                });
+                console.log('Screen share started for Gemini vision');
+            } catch (e) {
+                console.warn('Screen share denied:', e);
+                screenStream = null; screenVideo = null;
+            }
+        }
+
+        function captureFPVFrame() {
+            if (!robot) return null;
+            try {
+                if (currentEnvironment === 'maps') {
+                    // Maps mode: capture from screen share, crop to FPV pip area
+                    if (!screenVideo || !screenStream) return null;
+                    const tmp = document.createElement('canvas');
+                    tmp.width = 480; tmp.height = 320;
+                    const tctx = tmp.getContext('2d');
+                    // Get the FPV pip position to crop
+                    const pip = document.getElementById('fpv-pip');
+                    const isFullscreen = pip && pip.classList.contains('fullscreen');
+                    if (isFullscreen) {
+                        // FPV is fullscreen — capture entire screen
+                        tctx.drawImage(screenVideo, 0, 0, 480, 320);
+                    } else {
+                        // Crop to approximate FPV pip area (bottom-left corner)
+                        const vw = screenVideo.videoWidth, vh = screenVideo.videoHeight;
+                        // PiP is at bottom:20px, left:20px, 280x180 — scale to video coords
+                        const sx = 20 * (vw / window.innerWidth);
+                        const sy = (window.innerHeight - 200) * (vh / window.innerHeight);
+                        const sw = 280 * (vw / window.innerWidth);
+                        const sh = 180 * (vh / window.innerHeight);
+                        tctx.drawImage(screenVideo, sx, sy, sw, sh, 0, 0, 480, 320);
+                    }
+                    return tmp.toDataURL('image/jpeg', 0.5).split(',')[1];
+                }
+                // Non-maps: use Three.js FPV renderer
+                if (!fpvRenderer) return null;
+                robot.visible = false;
+                fpvRenderer.render(scene, fpvCamera);
+                robot.visible = true;
+                return fpvRenderer.domElement.toDataURL('image/jpeg', 0.4).split(',')[1];
+            } catch (e) { return null; }
+        }
+
+        // Send frames to Gemini periodically
+        function startFrameSender() {
+            if (frameInterval) clearInterval(frameInterval);
+            frameInterval = setInterval(() => {
+                if (!isConnected || !websocket || websocket.readyState !== WebSocket.OPEN) return;
+                if (websocket.bufferedAmount > 32768) return;
+
+                const frame = captureFPVFrame();
+                if (frame) {
+                    websocket.send(JSON.stringify({
+                        realtimeInput: {
+                            mediaChunks: [{
+                                mimeType: 'image/jpeg',
+                                data: frame
+                            }]
+                        }
+                    }));
+                }
+
+                // During autopilot: prompt Gemini to narrate what it sees
+                if (autopilot.active && websocket.readyState === WebSocket.OPEN) {
+                    const wp = autopilot.waypoints[autopilot.currentIndex];
+                    const heading = ((-robot.rotation.y * 180 / Math.PI) % 360 + 360) % 360;
+                    const narrationPrompt = `[NAV UPDATE] GPS: ${mapDroneLat.toFixed(5)},${mapDroneLng.toFixed(5)} | Alt: ${mapDroneAlt.toFixed(0)}m | Heading: ${heading.toFixed(0)}° | Next: ${wp ? wp.name : 'done'} (${autopilot.currentIndex + 1}/${autopilot.waypoints.length}). Briefly describe what you see in the camera image and your progress toward the destination. Keep it to 1 sentence.`;
+                    websocket.send(JSON.stringify({
+                        clientContent: {
+                            turns: [{ role: 'user', parts: [{ text: narrationPrompt }] }],
+                            turnComplete: true
+                        }
+                    }));
+                }
+            }, 2000); // Every 2 seconds
+        }
+
+        let lastTranscriptRole = null;
+        let lastTranscriptEl = null;
+        let lastTranscriptTimer = null;
+        function addTranscript(text, role) {
+            const panel = document.getElementById('transcript-panel');
+            if (!panel || !text.trim()) return;
+            // Append to existing element if same role (streaming words)
+            if (lastTranscriptRole === role && lastTranscriptEl && lastTranscriptEl.parentNode) {
+                lastTranscriptEl.textContent += ' ' + text.trim();
+                lastTranscriptEl.style.opacity = '1';
+                clearTimeout(lastTranscriptTimer);
+            } else {
+                const msg = document.createElement('div');
+                msg.className = 'transcript-msg ' + role;
+                msg.textContent = text.trim();
+                panel.appendChild(msg);
+                lastTranscriptRole = role;
+                lastTranscriptEl = msg;
+            }
+            panel.scrollTop = panel.scrollHeight;
+            while (panel.children.length > 20) panel.removeChild(panel.firstChild);
+            lastTranscriptTimer = setTimeout(() => {
+                if (lastTranscriptEl?.parentNode) lastTranscriptEl.style.opacity = '0.3';
+                lastTranscriptRole = null;
+                lastTranscriptEl = null;
+            }, 3000);
+        }
+
         function handleGeminiResponse(data) {
-            console.log('Gemini response:', data);
-            
+            // Handle setup complete
+            if (data.setupComplete) {
+                console.log('Gemini Live setup complete');
+                return;
+            }
+
             if (data.serverContent) {
                 const content = data.serverContent;
-                
+
+                // Input transcription (what user said)
+                if (content.inputTranscription?.text) {
+                    const userText = content.inputTranscription.text.trim();
+                    if (userText) {
+                        addTranscript(userText, 'user');
+                        document.getElementById('voice-status').textContent = userText;
+                    }
+                }
+
+                // Output transcription (what agent said)
+                if (content.outputTranscription?.text) {
+                    const agentText = content.outputTranscription.text.trim();
+                    if (agentText) addTranscript(agentText, 'agent');
+                }
+
                 if (content.modelTurn?.parts) {
                     for (const part of content.modelTurn.parts) {
+                        // Text response (non-audio text) — only show if no outputTranscription (avoid duplicates)
                         if (part.text) {
                             document.getElementById('voice-status').textContent = part.text;
-                            showToast(part.text);
                         }
+                        // Audio response (PCM 24kHz from Gemini)
                         if (part.inlineData?.mimeType?.startsWith('audio/')) {
-                            playAudioResponse(part.inlineData.data);
+                            playPCMAudio(part.inlineData.data);
                         }
                     }
                 }
-                
+
+                // Interrupted — user started speaking over agent
+                if (content.interrupted) {
+                    document.getElementById('voice-indicator').classList.remove('speaking');
+                    document.getElementById('voice-indicator').classList.add('listening');
+                    resetAudioQueue();
+                    lastTranscriptRole = null;
+                    lastTranscriptEl = null;
+                }
+
                 if (content.turnComplete) {
                     document.getElementById('voice-indicator').classList.remove('speaking');
                     document.getElementById('voice-indicator').classList.add('listening');
+                    resetAudioQueue();
+                    // Reset transcript accumulation so next turn starts fresh
+                    lastTranscriptRole = null;
+                    lastTranscriptEl = null;
+                }
+            }
+
+            // Handle tool calls from Gemini
+            if (data.toolCall) {
+                console.log('Tool call:', data.toolCall);
+                const results = [];
+                for (const fc of data.toolCall.functionCalls || []) {
+                    const result = executeToolCall(fc.name, fc.args || {});
+                    results.push({
+                        id: fc.id,
+                        response: { result }
+                    });
+                }
+                // Send tool results back to Gemini
+                if (websocket && websocket.readyState === WebSocket.OPEN) {
+                    websocket.send(JSON.stringify({
+                        toolResponse: { functionResponses: results }
+                    }));
                 }
             }
         }
-        
-        async function playAudioResponse(base64Audio) {
+
+        // Execute tool calls — actually control the drone
+        function executeToolCall(name, args) {
+            console.log('Executing tool:', name, args);
+
+            switch (name) {
+                case 'move_robot': {
+                    const durMs = (args.duration || 1) * 1000;
+                    const dir = args.direction;
+
+                    // Map directions to keys based on robot type
+                    let keyList = [];
+                    if (dir === 'forward') keyList = ['w'];
+                    else if (dir === 'backward') keyList = ['s'];
+                    else if (dir === 'left') {
+                        // Drone/AUV: strafe. Rover: turn left + forward
+                        if (robotType === 'rover' || robotType === 'quadruped') {
+                            keyList = ['w', 'arrowleft'];
+                        } else {
+                            keyList = ['a'];
+                        }
+                    } else if (dir === 'right') {
+                        if (robotType === 'rover' || robotType === 'quadruped') {
+                            keyList = ['w', 'arrowright'];
+                        } else {
+                            keyList = ['d'];
+                        }
+                    } else if (dir === 'up') {
+                        if (robotType === 'rover' || robotType === 'quadruped') {
+                            return { success: false, message: 'Ground vehicle cannot fly up' };
+                        }
+                        keyList = ['q'];
+                    } else if (dir === 'down') {
+                        if (robotType === 'rover' || robotType === 'quadruped') {
+                            return { success: false, message: 'Ground vehicle cannot descend' };
+                        }
+                        keyList = ['e'];
+                    }
+
+                    keyList.forEach(k => keys[k] = true);
+                    setTimeout(() => { keyList.forEach(k => keys[k] = false); }, durMs);
+                    return { success: true, message: `Moving ${dir} for ${args.duration || 1}s` };
+                }
+                case 'rotate_robot': {
+                    const deg = Math.min(args.degrees || 45, 360);
+                    const radians = (deg * Math.PI / 180) * (args.direction === 'left' ? 1 : -1);
+                    // Smooth animated rotation for all robot types
+                    const rotSteps = Math.max(10, Math.ceil(deg / 3));
+                    const stepRad = radians / rotSteps;
+                    let step = 0;
+                    const rotInterval = setInterval(() => {
+                        robot.rotation.y += stepRad;
+                        step++;
+                        if (step >= rotSteps) clearInterval(rotInterval);
+                    }, 16);
+                    return { success: true, message: `Rotating ${args.direction} ${deg}°` };
+                }
+                case 'set_speed': {
+                    const speeds = { slow: 0.03, normal: 0.06, fast: 0.12 };
+                    ROBOTS[robotType].physics.thrust = speeds[args.speed] || 0.06;
+                    return { success: true, message: `Speed set to ${args.speed}` };
+                }
+                case 'stop': {
+                    // Cancel autopilot and release all movement keys
+                    autopilot.active = false;
+                    ['w', 's', 'a', 'd', 'q', 'e', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown'].forEach(k => keys[k] = false);
+                    robotState.velocity.set(0, 0, 0);
+                    ROBOTS[robotType].physics.thrust = 0.06;
+                    return { success: true, message: 'Stopped and autopilot cancelled' };
+                }
+                case 'get_status': {
+                    const status = {
+                        robot: ROBOTS[robotType].name,
+                        environment: currentEnvironment,
+                        altitude: (currentEnvironment === 'maps' ? mapDroneAlt : (robot.position.y - envGroundY)).toFixed(1) + 'm',
+                        speed: (robotState.velocity.length() * 10).toFixed(1) + ' m/s',
+                        battery: Math.round(battery) + '%',
+                        heading: ((-robot.rotation.y * 180 / Math.PI) % 360).toFixed(0) + '°'
+                    };
+                    if (currentEnvironment === 'maps') {
+                        status.gps = { lat: mapDroneLat.toFixed(6), lng: mapDroneLng.toFixed(6) };
+                        status.city = currentMapCity;
+                        status.navigating = autopilot.active;
+                        if (autopilot.active) {
+                            const wp = autopilot.waypoints[autopilot.currentIndex];
+                            status.nextWaypoint = wp ? wp.name : 'none';
+                            status.waypointProgress = `${autopilot.currentIndex + 1}/${autopilot.waypoints.length}`;
+                        }
+                    } else {
+                        status.position = {
+                            x: robot.position.x.toFixed(1),
+                            y: robot.position.y.toFixed(1),
+                            z: robot.position.z.toFixed(1)
+                        };
+                    }
+                    return status;
+                }
+                case 'switch_environment': {
+                    const env = args.environment;
+                    if (ENVIRONMENTS[env]) {
+                        loadEnvironment(env);
+                        return { success: true, message: `Switched to ${ENVIRONMENTS[env].name}` };
+                    }
+                    return { success: false, message: `Unknown environment: ${env}` };
+                }
+                case 'navigate_to': {
+                    // Auto-switch to maps if needed
+                    if (currentEnvironment !== 'maps') {
+                        loadEnvironment('maps');
+                    }
+                    // Set up navigation (autopilot will start once map is active)
+                    autopilot.waypoints = [{ lat: args.lat, lng: args.lng, altitude: args.altitude || 150, name: args.name || 'Destination' }];
+                    autopilot.currentIndex = 0;
+                    autopilot.active = true;
+                    autopilot.speed = 'normal';
+                    // Also ensure drone starts at a reasonable altitude for navigation
+                    if (robot && robot.position.y < 5) {
+                        robot.position.y = 10;
+                        robotState.position.y = 10;
+                    }
+                    showToast('Navigating to ' + (args.name || `${args.lat.toFixed(4)}, ${args.lng.toFixed(4)}`));
+                    return {
+                        success: true,
+                        message: `Navigating to ${args.name || 'destination'}`,
+                        currentPosition: { lat: mapDroneLat, lng: mapDroneLng, altitude: mapDroneAlt }
+                    };
+                }
+                case 'set_waypoints': {
+                    // Auto-switch to maps if needed
+                    if (currentEnvironment !== 'maps') {
+                        loadEnvironment('maps');
+                    }
+                    const wps = args.waypoints || [];
+                    if (wps.length === 0) {
+                        return { success: false, message: 'No waypoints provided' };
+                    }
+                    autopilot.waypoints = wps.map((wp, i) => ({
+                        lat: wp.lat, lng: wp.lng,
+                        altitude: wp.altitude || 150,
+                        name: wp.name || ('Waypoint ' + (i + 1))
+                    }));
+                    autopilot.currentIndex = 0;
+                    autopilot.speed = args.speed || 'normal';
+                    autopilot.loop = args.loop || false;
+                    autopilot.active = true;
+                    // Ensure drone has altitude for navigation
+                    if (robot && robot.position.y < 5) {
+                        robot.position.y = 10;
+                        robotState.position.y = 10;
+                    }
+                    showToast(`Route set: ${wps.length} waypoints — ${autopilot.speed} speed`);
+                    return {
+                        success: true,
+                        message: `Route set with ${wps.length} waypoints`,
+                        waypoints: autopilot.waypoints.map(w => w.name),
+                        currentPosition: { lat: mapDroneLat, lng: mapDroneLng, altitude: mapDroneAlt }
+                    };
+                }
+                case 'switch_robot': {
+                    const newType = args.robot;
+                    if (ROBOTS[newType]) {
+                        switchRobot(newType);
+                        return { success: true, message: `Switched to ${ROBOTS[newType].name}` };
+                    }
+                    return { success: false, message: `Unknown robot: ${newType}` };
+                }
+                case 'cancel_navigation': {
+                    autopilot.active = false;
+                    autopilot.waypoints = [];
+                    ['w', 's', 'a', 'd', 'q', 'e', 'arrowleft', 'arrowright'].forEach(k => keys[k] = false);
+                    ROBOTS[robotType].physics.thrust = 0.06; // Reset thrust
+                    showToast('Navigation cancelled');
+                    return { success: true, message: 'Navigation cancelled, manual control restored' };
+                }
+                case 'set_altitude': {
+                    if (robotType === 'rover' || robotType === 'quadruped') {
+                        return { success: false, message: 'Ground vehicles cannot change altitude' };
+                    }
+                    const alt = args.altitude || 50;
+                    autopilot.targetAlt = alt;
+                    if (currentEnvironment === 'maps') {
+                        const targetY = alt / 5 + 0.3;
+                        const startY = robot.position.y;
+                        const steps = 60;
+                        let step = 0;
+                        const altInterval = setInterval(() => {
+                            step++;
+                            const t = step / steps;
+                            robot.position.y = startY + (targetY - startY) * t;
+                            robotState.position.y = robot.position.y;
+                            if (step >= steps) clearInterval(altInterval);
+                        }, 33);
+                    } else if (robotType === 'auv') {
+                        // AUV: altitude is depth (negative Y). "altitude 10" = shallow, "altitude 25" = deep
+                        const targetDepth = -Math.max(1, Math.min(28, alt));
+                        const startY = robot.position.y;
+                        const steps = 60;
+                        let step = 0;
+                        const depthInterval = setInterval(() => {
+                            step++;
+                            robot.position.y = startY + (targetDepth - startY) * (step / steps);
+                            robotState.position.y = robot.position.y;
+                            if (step >= steps) clearInterval(depthInterval);
+                        }, 33);
+                        return { success: true, message: `Diving to depth ${alt}m` };
+                    } else {
+                        const altDiff = alt - (robot.position.y - envGroundY);
+                        const key = altDiff > 0 ? 'q' : 'e';
+                        keys[key] = true;
+                        setTimeout(() => { keys[key] = false; }, Math.min(Math.abs(altDiff) * 100, 5000));
+                    }
+                    return { success: true, message: `Setting altitude to ${alt}m` };
+                }
+                default:
+                    return { success: false, message: `Unknown tool: ${name}` };
+            }
+        }
+
+        // Play PCM16 audio at 24kHz (Gemini Live output format)
+        // Queued audio playback — schedules chunks back-to-back, no overlap
+        let nextPlayTime = 0;
+
+        function playPCMAudio(base64Data) {
             document.getElementById('voice-indicator').classList.remove('listening');
             document.getElementById('voice-indicator').classList.add('speaking');
-            
+
             try {
-                const audioData = atob(base64Audio);
-                const arrayBuffer = new ArrayBuffer(audioData.length);
-                const view = new Uint8Array(arrayBuffer);
-                for (let i = 0; i < audioData.length; i++) view[i] = audioData.charCodeAt(i);
-                
-                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                const source = audioContext.createBufferSource();
+                const binaryStr = atob(base64Data);
+                const bytes = new Uint8Array(binaryStr.length);
+                for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+
+                // Convert PCM16 LE to Float32
+                const pcm16 = new Int16Array(bytes.buffer);
+                const float32 = new Float32Array(pcm16.length);
+                for (let i = 0; i < pcm16.length; i++) {
+                    float32[i] = pcm16[i] / 32768.0;
+                }
+
+                const ctx = playbackCtx || audioContext;
+                const audioBuffer = ctx.createBuffer(1, float32.length, 24000);
+                audioBuffer.getChannelData(0).set(float32);
+
+                const source = ctx.createBufferSource();
                 source.buffer = audioBuffer;
-                source.connect(audioContext.destination);
-                source.start();
+                source.connect(ctx.destination);
+
+                // Schedule this chunk right after the previous one ends
+                const now = ctx.currentTime;
+                if (nextPlayTime < now) nextPlayTime = now;
+                source.start(nextPlayTime);
+                nextPlayTime += audioBuffer.duration;
+
+                source.onended = () => {
+                    // If nothing scheduled after this, we're done speaking
+                    if (ctx.currentTime >= nextPlayTime - 0.05) {
+                        document.getElementById('voice-indicator').classList.remove('speaking');
+                        document.getElementById('voice-indicator').classList.add('listening');
+                    }
+                };
             } catch (error) {
-                console.log('Audio playback note:', error.message);
+                console.log('Audio playback error:', error.message);
             }
+        }
+
+        // Reset audio queue on new turn (when Gemini starts speaking)
+        function resetAudioQueue() {
+            nextPlayTime = 0;
         }
         
         // ============= INITIALIZE =============
